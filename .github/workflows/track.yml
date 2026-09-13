@@ -92,3 +92,115 @@ jobs:
 
           git commit -m "chore(assets): update drive state [skip ci]"
           git push origin HEAD:chore/asset
+
+
+  # ============================================================
+  # DISCORD FAILURE NOTIFICATION
+  # ============================================================
+
+  notify-failure:
+    name: Notify Discord (Failure)
+
+    needs:
+      - track
+
+    if: failure()
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Generate failure message with Gemini
+        id: flavor
+
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+          GEMINI_PERSONA: ${{ vars.GEMINI_PERSONA || 'You are a helpful assistant.' }}
+          GEMINI_LANGUAGE: ${{ vars.GEMINI_LANGUAGE || '' }}
+
+        shell: bash
+
+        run: |
+          set -e
+
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ -n "${GEMINI_LANGUAGE}" ]; then
+            LANGUAGE_INSTRUCTION="Write the response in ${GEMINI_LANGUAGE}."
+          else
+            LANGUAGE_INSTRUCTION="Write the response in the same language used in the persona instructions above."
+          fi
+
+          PROMPT="${GEMINI_PERSONA}
+
+          Write ONE short paragraph (maximum 3 sentences, no markdown formatting, no surrounding quotation marks) announcing that the automated Drive change tracking workflow for repository \"${{ github.repository }}\" has FAILED.
+
+          Include the workflow run URL: ${RUN_URL}
+          ${LANGUAGE_INSTRUCTION}"
+
+          BODY=$(jq -n \
+            --arg prompt "$PROMPT" \
+            '{
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: $prompt
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          RESPONSE=$(curl -sS -X POST \
+            "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+
+          TEXT=$(echo "$RESPONSE" | jq -r \
+            '.candidates[0].content.parts[0].text // empty')
+
+          if [ -z "$TEXT" ]; then
+            echo "Gemini failed, using fallback message."
+            TEXT="Track drive changes untuk ${{ github.repository }} gagal. Sila cek log: ${RUN_URL}"
+          fi
+
+          {
+            echo "text<<GEMINI_EOF"
+            echo "$TEXT"
+            echo "GEMINI_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Send Discord failure notification
+
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          FLAVOR_TEXT: ${{ steps.flavor.outputs.text }}
+
+        shell: bash
+
+        run: |
+          set -e
+
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          PAYLOAD=$(jq -n \
+            --arg content "$FLAVOR_TEXT" \
+            --arg title "Track Failed — ${{ github.repository }}" \
+            --arg url "$RUN_URL" \
+            '{
+              embeds: [
+                {
+                  title: $title,
+                  url: $url,
+                  description: $content,
+                  color: 15548997
+                }
+              ]
+            }')
+
+          curl -sS \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_WEBHOOK_URL"
