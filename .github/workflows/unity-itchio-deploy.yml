@@ -798,3 +798,159 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" \
             "$DISCORD_WEBHOOK_URL"
+
+
+  # ============================================================
+  # DISCORD FAILURE NOTIFICATION
+  # ============================================================
+
+  notify-failure:
+    name: Notify Discord (Failure)
+
+    needs:
+      - build
+      - deploy
+
+    if: failure()
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Generate failure message with Gemini
+        id: flavor
+
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+          GEMINI_PERSONA: ${{ vars.GEMINI_PERSONA || 'You are a helpful assistant.' }}
+          GEMINI_LANGUAGE: ${{ vars.GEMINI_LANGUAGE || '' }}
+          GAME_DISPLAY_NAME: ${{ vars.GAME_DISPLAY_NAME || vars.ITCH_GAME }}
+          PLATFORMS_INPUT: ${{ inputs.platforms }}
+
+        shell: bash
+
+        run: |
+          set -e
+
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ -z "${PLATFORMS_INPUT}" ] || [ "${PLATFORMS_INPUT}" = "All" ]; then
+            PLATFORM_LIST="Windows, macOS, and Web"
+          else
+            PLATFORM_LIST="${PLATFORMS_INPUT}"
+          fi
+
+          if [ -n "${GEMINI_LANGUAGE}" ]; then
+            LANGUAGE_INSTRUCTION="Write the response in ${GEMINI_LANGUAGE}."
+          else
+            LANGUAGE_INSTRUCTION="Write the response in the same language used in the persona instructions above."
+          fi
+
+          PROMPT="${GEMINI_PERSONA}
+
+          Write ONE short paragraph (maximum 3 sentences, no markdown formatting, no surrounding quotation marks) announcing that the build and deploy workflow for the game \"${GAME_DISPLAY_NAME}\" to ${PLATFORM_LIST} on itch.io has FAILED.
+
+          Include the workflow run URL: ${RUN_URL}
+          ${LANGUAGE_INSTRUCTION}"
+
+          BODY=$(jq -n \
+            --arg prompt "$PROMPT" \
+            '{
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: $prompt
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          RESPONSE=$(curl -sS -X POST \
+            "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+
+          TEXT=$(echo "$RESPONSE" | jq -r \
+            '.candidates[0].content.parts[0].text // empty')
+
+          if [ -z "$TEXT" ]; then
+            echo "Gemini failed, using fallback message."
+            TEXT="Build & deploy ${GAME_DISPLAY_NAME} ke itch.io gagal (${PLATFORM_LIST}). Sila cek log: ${RUN_URL}"
+          fi
+
+          {
+            echo "text<<GEMINI_EOF"
+            echo "$TEXT"
+            echo "GEMINI_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Send Discord failure notification
+
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL_DEPLOY }}
+          FLAVOR_TEXT: ${{ steps.flavor.outputs.text }}
+          GAME_DISPLAY_NAME: ${{ vars.GAME_DISPLAY_NAME || vars.ITCH_GAME }}
+          PLATFORMS_INPUT: ${{ inputs.platforms }}
+
+        shell: bash
+
+        run: |
+          set -e
+
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ -z "${PLATFORMS_INPUT}" ] || [ "${PLATFORMS_INPUT}" = "All" ]; then
+            WIN_STATUS="❌"
+            MAC_STATUS="❌"
+            WEB_STATUS="❌"
+          else
+            WIN_STATUS="⏭️"
+            MAC_STATUS="⏭️"
+            WEB_STATUS="⏭️"
+            [ "${PLATFORMS_INPUT}" = "Windows" ] && WIN_STATUS="❌"
+            [ "${PLATFORMS_INPUT}" = "macOS" ] && MAC_STATUS="❌"
+            [ "${PLATFORMS_INPUT}" = "WebGL" ] && WEB_STATUS="❌"
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg content "$FLAVOR_TEXT" \
+            --arg title "Build Failed — ${GAME_DISPLAY_NAME}" \
+            --arg url "$RUN_URL" \
+            --arg win "$WIN_STATUS" \
+            --arg mac "$MAC_STATUS" \
+            --arg web "$WEB_STATUS" \
+            '{
+              embeds: [
+                {
+                  title: $title,
+                  url: $url,
+                  description: $content,
+                  color: 15548997,
+                  fields: [
+                    {
+                      name: "Windows",
+                      value: $win,
+                      inline: true
+                    },
+                    {
+                      name: "macOS",
+                      value: $mac,
+                      inline: true
+                    },
+                    {
+                      name: "Web",
+                      value: $web,
+                      inline: true
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          curl -sS \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_WEBHOOK_URL"
