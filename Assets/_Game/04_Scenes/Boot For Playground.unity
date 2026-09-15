@@ -151,14 +151,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: beb137c658f3e9d43916e20989edf06b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetSceneName: Main Menu
+  targetSceneName: Playground
   systemsToWaitFor:
   - {fileID: 4115260132365387882}
   - {fileID: 8749752912689491822}
   - {fileID: 6566610846096549240}
   - {fileID: 8288878238034393913}
   - {fileID: 4008168660347787388}
-  - {fileID: 9071361640674707207}
   minimumDelay: 0
 --- !u!4 &451537712
 Transform:
@@ -429,7 +428,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5773052021503551936, guid: 6dd11de8d4967488cab22a6e69e968f9, type: 3}
       propertyPath: m_Name
-      value: Loading (1)
+      value: Loading
       objectReference: {fileID: 0}
     - target: {fileID: 7706567528135839805, guid: 6dd11de8d4967488cab22a6e69e968f9, type: 3}
       propertyPath: excludedScenes.Array.size
