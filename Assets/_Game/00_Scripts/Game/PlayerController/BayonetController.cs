@@ -4,6 +4,10 @@ using Slafurry.System.InputHub;
 [RequireComponent(typeof(Rigidbody2D), typeof(HingeJoint2D))]
 public class BayonetController : MonoBehaviour
 {
+    /*
+    Too High Sensivity with low Body Mass 
+    can cause player to fly by just a wiggle
+    */
     [Header("Sensitivity & Limits")]
     [SerializeField] private float rotationSensitivity = 30f;
     [SerializeField] private float maxAngularSpeed = 2000f;

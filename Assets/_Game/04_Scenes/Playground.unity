@@ -220,7 +220,7 @@ Rigidbody2D:
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
-  m_Mass: 1
+  m_Mass: 10
   m_LinearDrag: 0
   m_AngularDrag: 0.05
   m_GravityScale: 1
@@ -650,7 +650,7 @@ Rigidbody2D:
   m_UseAutoMass: 0
   m_Mass: 1
   m_LinearDrag: 0
-  m_AngularDrag: 0.05
+  m_AngularDrag: 1
   m_GravityScale: 0
   m_Material: {fileID: 0}
   m_IncludeLayers:
@@ -700,13 +700,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dfbf5ef2de361f3418f01052f8f09d4f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rotationSensitivity: 60
+  rotationSensitivity: 40
   maxAngularSpeed: 1200
   spriteAngleOffset: -60
   pivotOffset: {x: 0, y: 0}
   shootDir: {fileID: 2123358454}
-  shootForce: 15
-  recoilForce: 20
+  shootForce: 30
+  recoilForce: 50
   shootCooldown: 0.5
 --- !u!1 &2123358453
 GameObject:
