@@ -1,0 +1,103 @@
+{
+    "version": 1,
+    "name": "Main Input",
+    "maps": [
+        {
+            "name": "Gameplay",
+            "id": "583e8cf7-8caf-4939-9694-b930fc3a43ff",
+            "actions": [
+                {
+                    "name": "Parry",
+                    "type": "Button",
+                    "id": "4a9cde8a-bb31-492d-93c5-ee5968666a17",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Shoot",
+                    "type": "Button",
+                    "id": "4872b03f-2c54-4a00-afcc-89d53d3ce4c3",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "LookAt",
+                    "type": "Value",
+                    "id": "7ead953d-827d-4c5b-ad0f-aaffd0294762",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "de71f13b-b0cc-4a58-bd42-dbae087b9a9d",
+                    "path": "<Mouse>/rightButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Parry",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "297b0b90-4821-4f35-b411-0fe859ff397a",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Shoot",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "46c36c8f-4b4b-467a-adce-81d99f97db93",
+                    "path": "<Mouse>/position",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "LookAt",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
+            "name": "UI",
+            "id": "fad09910-2fe0-49fe-a9eb-c8742978ed9a",
+            "actions": [
+                {
+                    "name": "PauseMenu",
+                    "type": "Button",
+                    "id": "7b444b15-d2c6-433a-b402-fa43784844d2",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "f189e1a1-a8ea-4bf1-b88c-a79329e765d4",
+                    "path": "<Keyboard>/escape",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "PauseMenu",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}
