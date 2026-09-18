@@ -41,5 +41,6 @@
   <Project Path="Unity.2D.Common.Runtime.csproj" />
   <Project Path="Unity.InputSystem.DocCodeSamples.csproj" />
   <Project Path="Unity.Collections.DocCodeSamples.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Unity.Mathematics.Editor.csproj" />
 </Solution>

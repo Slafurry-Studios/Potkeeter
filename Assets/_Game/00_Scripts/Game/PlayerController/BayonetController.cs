@@ -4,97 +4,105 @@ using Slafurry.System.InputHub;
 [RequireComponent(typeof(Rigidbody2D), typeof(HingeJoint2D))]
 public class BayonetController : MonoBehaviour
 {
-    /*
-    Too High Sensivity with low Body Mass 
-    can cause player to fly by just a wiggle
-    */
     [Header("Sensitivity & Limits")]
     [SerializeField] private float rotationSensitivity = 30f;
     [SerializeField] private float maxAngularSpeed = 2000f;
 
-    [Header("Sprite & Pivot Settings")]
-    [Tooltip("Ubah ini jika sprite bayonet tidak menghadap ke kanan secara default (misal: set 90 jika menghadap ke atas)")]
+    [Header("Pivot & Radius Settings")]
+    [Tooltip("Transform acuan pusat rotasi & jarak (mis. child 'BasePivot' di bawah UpperArm). " +
+             "Transform ini mengikuti rig lengan, sehingga jarak & rotasi Bayonet otomatis mengikuti posisi lengan " +
+             "meskipun BayonetParent/Body bergeser.")]
+    [SerializeField] private Transform basePivot;
+    [Tooltip("Radius minimum agar bayonet tidak terlalu dekat ke basePivot")]
+    [SerializeField] private float minPivotRadius = 0.5f;
+    [Tooltip("Radius maksimum area kontrol (Getting Over It Style)")]
+    [SerializeField] private float controlRadius = 2.5f;
+    [Tooltip("Kecepatan lerp pergeseran anchor bayonet")]
+    [SerializeField] private float distanceResponseSpeed = 15f;
+
+    [Header("Sprite Settings")]
+    [Tooltip("Offset sudut jika sprite tidak menghadap ke kanan secara default")]
     [SerializeField] private float spriteAngleOffset = 0f;
 
-    [Tooltip("Offset titik pivot jika rotasi tidak persis di center connectedBody")]
-    [SerializeField] private Vector2 pivotOffset = Vector2.zero;
-    
     [Header("Shoot & Knockback Settings")]
-    [Tooltip("Transform di ujung bayonet yang berfungsi sebagai Titik 2 trajektori")]
+    [Tooltip("Transform di ujung bayonet untuk trajektori")]
     [SerializeField] private Transform shootDir;
-    [SerializeField] private float shootForce = 15f;      // Dorongan ke depan bayonet
-    [SerializeField] private float recoilForce = 5f;       // Knockback yang diterima Player
-    [SerializeField] private float shootCooldown = 0.3f;   // Jeda antartembakan
+    [SerializeField] private float shootForce = 15f;
+    [SerializeField] private float recoilForce = 5f;
+    [SerializeField] private float shootCooldown = 0.3f;
+
+    [Header("References")]
+    [SerializeField] private HingeJoint2D hinge;
+
+    private const float DirectionEpsilonSqr = 0.001f;
+    private const float TrajectoryEpsilonSqr = 0.0001f;
 
     private Rigidbody2D bayonetRb;
-    private HingeJoint2D hinge;
     private Camera mainCamera;
-    
+
     private Vector2 currentScreenMousePos;
-    private bool isShootPending = false;
+    private bool isShootPending;
     private float lastShootTime = -999f;
 
-    private void Start()
+    private void Awake()
     {
         bayonetRb = GetComponent<Rigidbody2D>();
-        hinge = GetComponent<HingeJoint2D>();
+        if (hinge == null) hinge = GetComponent<HingeJoint2D>();
         mainCamera = Camera.main;
 
         hinge.useMotor = false;
         bayonetRb.useFullKinematicContacts = true;
 
+        if (basePivot == null)
+        {
+            Debug.LogError(
+                $"[{nameof(BayonetController)}] '{nameof(basePivot)}' belum di-assign pada '{name}'. " +
+                "Assign transform BasePivot (child dari rig lengan) di Inspector.", this);
+        }
+    }
+
+    private void OnEnable()
+    {
         Controls.OnLookAtChanged += HandleLookAtChanged;
         Controls.OnShootStarted += HandleShootStarted;
     }
 
-    private void OnDestroy()
+    private void OnDisable()
     {
         Controls.OnLookAtChanged -= HandleLookAtChanged;
         Controls.OnShootStarted -= HandleShootStarted;
     }
 
-    private void HandleLookAtChanged(Vector2 mouseScreenPosition)
+    private void OnValidate()
     {
-        currentScreenMousePos = mouseScreenPosition;
+        minPivotRadius = Mathf.Max(0f, minPivotRadius);
+        controlRadius = Mathf.Max(minPivotRadius, controlRadius);
     }
+
+    private void HandleLookAtChanged(Vector2 mouseScreenPosition) => currentScreenMousePos = mouseScreenPosition;
 
     private void HandleShootStarted()
     {
-        if (!Controls.IsInputEnabled)
-            return;
+        if (!Controls.IsInputEnabled) return;
+        if (Time.time < lastShootTime + shootCooldown) return;
 
-        // Cek Cooldown
-        if (Time.time >= lastShootTime + shootCooldown)
-        {
-            isShootPending = true;
-            lastShootTime = Time.time;
-        }
+        isShootPending = true;
+        lastShootTime = Time.time;
     }
 
     private void FixedUpdate()
     {
-        if (!Controls.IsInputEnabled || bayonetRb == null || hinge.connectedBody == null)
+        if (!Controls.IsInputEnabled || hinge.connectedBody == null || basePivot == null)
             return;
 
-        // --- 1. ROTASI BAYONET ---
-        Vector3 mouseScreenWithZ = new Vector3(
-            currentScreenMousePos.x, 
-            currentScreenMousePos.y, 
-            Mathf.Abs(mainCamera.transform.position.z - transform.position.z)
-        );
-        Vector2 mouseWorldPosition = mainCamera.ScreenToWorldPoint(mouseScreenWithZ);
+        Vector2 pivotPosition = basePivot.position;
+        Vector2 mouseWorldPosition = GetMouseWorldPosition();
+        Vector2 toMouse = mouseWorldPosition - pivotPosition;
 
-        Vector2 actualPivot = GetActualPivot();
-        Vector2 direction = mouseWorldPosition - actualPivot;
-
-        if (direction.sqrMagnitude > 0.001f)
+        if (toMouse.sqrMagnitude > DirectionEpsilonSqr)
         {
-            float desiredAngle = (Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg) + spriteAngleOffset;
-            float currentAngle = bayonetRb.rotation;
-            float angleDifference = Mathf.DeltaAngle(currentAngle, desiredAngle);
-
-            float targetAngularVelocity = Mathf.Clamp(angleDifference * rotationSensitivity, -maxAngularSpeed, maxAngularSpeed);
-            bayonetRb.angularVelocity = targetAngularVelocity;
+            UpdateAnchorPosition(pivotPosition, toMouse);
+            UpdateRotation(toMouse);
         }
         else
         {
@@ -108,23 +116,56 @@ public class BayonetController : MonoBehaviour
         }
     }
 
-    private Vector2 GetActualPivot()
+    private Vector2 GetMouseWorldPosition()
     {
-        return (Vector2)hinge.connectedBody.transform.TransformPoint(hinge.connectedAnchor) + pivotOffset;
+        float depth = Mathf.Abs(mainCamera.transform.position.z - transform.position.z);
+        Vector3 screenPointWithDepth = new Vector3(currentScreenMousePos.x, currentScreenMousePos.y, depth);
+        return mainCamera.ScreenToWorldPoint(screenPointWithDepth);
+    }
+
+    /// <summary>
+    /// Menggeser connectedAnchor hinge sepanjang arah mouse, dibatasi antara minPivotRadius
+    /// dan controlRadius dari basePivot saat ini (mengikuti rig lengan).
+    /// </summary>
+    private void UpdateAnchorPosition(Vector2 pivotPosition, Vector2 toMouse)
+    {
+        float targetDistance = Mathf.Clamp(toMouse.magnitude, minPivotRadius, controlRadius);
+        Vector2 targetWorldAnchor = pivotPosition + toMouse.normalized * targetDistance;
+        Vector2 targetLocalAnchor = hinge.connectedBody.transform.InverseTransformPoint(targetWorldAnchor);
+
+        hinge.connectedAnchor = Vector2.Lerp(
+            hinge.connectedAnchor,
+            targetLocalAnchor,
+            distanceResponseSpeed * Time.fixedDeltaTime);
+    }
+
+    private void UpdateRotation(Vector2 toMouse)
+    {
+        float desiredAngle = Mathf.Atan2(toMouse.y, toMouse.x) * Mathf.Rad2Deg + spriteAngleOffset;
+        float angleDifference = Mathf.DeltaAngle(bayonetRb.rotation, desiredAngle);
+
+        bayonetRb.angularVelocity = Mathf.Clamp(
+            angleDifference * rotationSensitivity,
+            -maxAngularSpeed,
+            maxAngularSpeed);
+    }
+
+    private Vector2 GetActualAnchorWorldPosition()
+    {
+        return hinge.connectedBody.transform.TransformPoint(hinge.connectedAnchor);
     }
 
     private Vector2 GetTrajectoryDirection()
     {
-        Vector2 pivotPoint = GetActualPivot();
-        
-        Vector2 tipPoint = shootDir != null ? (Vector2)shootDir.position : (Vector2)transform.position;
+        if (basePivot == null) return transform.right;
 
+        Vector2 pivotPoint = basePivot.position;
+        Vector2 tipPoint = shootDir != null ? (Vector2)shootDir.position : (Vector2)transform.position;
         Vector2 trajectoryVector = tipPoint - pivotPoint;
 
-        if (trajectoryVector.sqrMagnitude <= 0.0001f)
-            return transform.right;
-
-        return trajectoryVector.normalized;
+        return trajectoryVector.sqrMagnitude > TrajectoryEpsilonSqr
+            ? trajectoryVector.normalized
+            : (Vector2)transform.right;
     }
 
     private void ExecuteShootAndKnockback()
@@ -142,25 +183,33 @@ public class BayonetController : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        if (hinge != null && hinge.connectedBody != null)
+        if (basePivot == null) return;
+
+        Vector2 pivotPosition = basePivot.position;
+        Vector2 currentAnchorPoint = Application.isPlaying && hinge != null && hinge.connectedBody != null
+            ? GetActualAnchorWorldPosition()
+            : pivotPosition;
+
+        // Min radius (batas terdekat)
+        Gizmos.color = new Color(1f, 0.3f, 0f);
+        Gizmos.DrawWireSphere(pivotPosition, minPivotRadius);
+
+        // Control radius (batas terjauh)
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(pivotPosition, controlRadius);
+
+        Vector2 trajectoryDirection = GetTrajectoryDirection();
+
+        Gizmos.color = Color.blue;
+        Gizmos.DrawLine(pivotPosition, pivotPosition + trajectoryDirection * controlRadius);
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(currentAnchorPoint, 0.08f);
+
+        if (shootDir != null)
         {
-            Vector2 pivotPoint = GetActualPivot();
-            
-            // Visualisasi Titik 1 (Pivot)
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(pivotPoint, 0.1f);
-
-            if (shootDir != null)
-            {
-                // Visualisasi Titik 2 (shootDir)
-                Gizmos.color = Color.cyan;
-                Gizmos.DrawWireSphere(shootDir.position, 0.08f);
-
-                // Visualisasi Garis Trajektori (Titik 1 -> Titik 2 dan seterusnya)
-                Vector2 trajectoryDir = GetTrajectoryDirection();
-                Gizmos.color = Color.yellow;
-                Gizmos.DrawLine(pivotPoint, (Vector2)shootDir.position + (trajectoryDir * 2f));
-            }
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawLine(currentAnchorPoint, (Vector2)shootDir.position + trajectoryDirection * 2f);
         }
     }
 }
