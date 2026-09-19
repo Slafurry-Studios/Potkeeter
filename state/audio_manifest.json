@@ -7,9 +7,7 @@
     "name": "virtual-insanity.mp3",
     "modifiedTime": "2026-09-05T14:54:26.000Z",
     "relative_path": "virtual-insanity.mp3",
-    "retrieve_status": "downloaded",
-    "downloaded_as": "virtual-insanity.mp3",
-    "downloaded_modified_time": "2026-09-05T14:54:26.000Z"
+    "retrieve_status": "downloaded"
   },
   "1evDihp1XgkLFl0tZeWh5XeXkP42llEDq": {
     "mimeType": "audio/wav",
@@ -19,8 +17,6 @@
     "name": "sfx_s2_walk-2.wav",
     "modifiedTime": "2026-08-18T10:20:16.000Z",
     "relative_path": "sfx_s2_walk-2.wav",
-    "retrieve_status": "downloaded",
-    "downloaded_as": "sfx_s2_walk-2.wav",
-    "downloaded_modified_time": "2026-08-18T10:20:16.000Z"
+    "retrieve_status": "downloaded"
   }
 }
