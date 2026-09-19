@@ -27,6 +27,7 @@ public class BayonetController : MonoBehaviour
     [Header("Shoot & Knockback Settings")]
     [Tooltip("Transform di ujung bayonet untuk trajektori")]
     [SerializeField] private Transform shootDir;
+    [SerializeField] private float shootRange = 5f;
     [SerializeField] private float shootForce = 15f;
     [SerializeField] private float recoilForce = 5f;
     [SerializeField] private float shootCooldown = 0.3f;
@@ -179,6 +180,32 @@ public class BayonetController : MonoBehaviour
         {
             playerRb.AddForce(-trajectoryDir * recoilForce, ForceMode2D.Impulse);
         }
+
+        RaycastHit2D raycastCollider = Physics2D.Raycast(GetActualAnchorWorldPosition(), trajectoryDir, shootRange, LayerMask.GetMask("Enemy"));
+        if (!raycastCollider) return;
+
+        EnemyHealth targetHealth = raycastCollider.collider.GetComponentInParent<EnemyHealth>();
+        Rigidbody2D targetRb = raycastCollider.collider.GetComponentInParent<Rigidbody2D>();
+
+        if (targetHealth != null)
+        {
+            if (targetHealth.Health != null)
+            {
+                targetHealth.Health.TakeDamage(10f);
+            }
+
+            Debug.Log($"Hit {raycastCollider.collider.name} for 10 damage!");
+        }
+        else
+        {
+            Debug.LogWarning($"Hit {raycastCollider.collider.name}, tapi komponen 'EnemyHealth' tidak ditemukan!");
+        }
+
+        // Apply Knockback jika Rigidbody2D ditemukan
+        if (targetRb != null)
+        {
+            targetRb.AddForce(trajectoryDir * shootForce, ForceMode2D.Impulse);
+        }
     }
 
     private void OnDrawGizmos()
@@ -209,7 +236,7 @@ public class BayonetController : MonoBehaviour
         if (shootDir != null)
         {
             Gizmos.color = Color.yellow;
-            Gizmos.DrawLine(currentAnchorPoint, (Vector2)shootDir.position + trajectoryDirection * 2f);
+            Gizmos.DrawLine(currentAnchorPoint, (Vector2)shootDir.position + trajectoryDirection * shootRange);
         }
     }
 }
