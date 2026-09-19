@@ -527,7 +527,7 @@ GameObject:
   m_Component:
   - component: {fileID: 597095282}
   - component: {fileID: 597095283}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -612,7 +612,7 @@ GameObject:
   - component: {fileID: 648012039}
   - component: {fileID: 648012041}
   - component: {fileID: 648012040}
-  m_Layer: 5
+  m_Layer: 8
   m_Name: Background
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -687,7 +687,7 @@ GameObject:
   - component: {fileID: 653616814}
   - component: {fileID: 653616816}
   - component: {fileID: 653616815}
-  m_Layer: 5
+  m_Layer: 8
   m_Name: Fill
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -760,7 +760,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 953459666}
-  m_Layer: 5
+  m_Layer: 8
   m_Name: Fill Area
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -798,7 +798,7 @@ GameObject:
   - component: {fileID: 1137107163}
   - component: {fileID: 1137107165}
   - component: {fileID: 1137107164}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Text (TMP)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1094,7 +1094,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1398595115}
   - component: {fileID: 1398595116}
-  m_Layer: 5
+  m_Layer: 8
   m_Name: Slider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1592,7 +1592,7 @@ GameObject:
   - component: {fileID: 1578179302}
   - component: {fileID: 1578179301}
   - component: {fileID: 1578179300}
-  m_Layer: 5
+  m_Layer: 8
   m_Name: Canvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1695,7 +1695,7 @@ GameObject:
   - component: {fileID: 1828378050}
   - component: {fileID: 1828378049}
   - component: {fileID: 1828378051}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Enemy Dummy
   m_TagString: Enemy
   m_Icon: {fileID: 0}
@@ -1784,7 +1784,7 @@ Rigidbody2D:
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
-  m_Mass: 1
+  m_Mass: 10
   m_LinearDrag: 0
   m_AngularDrag: 0.05
   m_GravityScale: 1
@@ -2020,6 +2020,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 979977549808994039, guid: 05772bf96e602894785cb33119bd5ab3, type: 3}
+      propertyPath: shootRange
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 979977549808994039, guid: 05772bf96e602894785cb33119bd5ab3, type: 3}
+      propertyPath: spriteAngleOffset
+      value: -80
+      objectReference: {fileID: 0}
     - target: {fileID: 2160065396919123733, guid: 05772bf96e602894785cb33119bd5ab3, type: 3}
       propertyPath: m_Name
       value: Players
