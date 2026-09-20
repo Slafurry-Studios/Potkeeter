@@ -430,6 +430,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Loading
       objectReference: {fileID: 0}
+    - target: {fileID: 5773052021503551936, guid: 6dd11de8d4967488cab22a6e69e968f9, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7706567528135839805, guid: 6dd11de8d4967488cab22a6e69e968f9, type: 3}
       propertyPath: excludedScenes.Array.size
       value: 6

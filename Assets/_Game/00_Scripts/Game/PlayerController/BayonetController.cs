@@ -9,9 +9,7 @@ public class BayonetController : MonoBehaviour
     [SerializeField] private float maxAngularSpeed = 2000f;
 
     [Header("Pivot & Radius Settings")]
-    [Tooltip("Transform acuan pusat rotasi & jarak (mis. child 'BasePivot' di bawah UpperArm). " +
-             "Transform ini mengikuti rig lengan, sehingga jarak & rotasi Bayonet otomatis mengikuti posisi lengan " +
-             "meskipun BayonetParent/Body bergeser.")]
+    [Tooltip("Transform acuan pusat rotasi & jarak (mis. child 'BasePivot' di bawah UpperArm).")]
     [SerializeField] private Transform basePivot;
     [Tooltip("Radius minimum agar bayonet tidak terlalu dekat ke basePivot")]
     [SerializeField] private float minPivotRadius = 0.5f;
@@ -31,6 +29,18 @@ public class BayonetController : MonoBehaviour
     [SerializeField] private float shootForce = 15f;
     [SerializeField] private float recoilForce = 5f;
     [SerializeField] private float shootCooldown = 0.3f;
+    [SerializeField] private float shootTransitionTime = 0.3f;
+
+    [Header("Parry Settings")]
+    [Tooltip("Jarak jangkauan bayonet untuk mendeteksi serangan/hitbox musuh")]
+    [SerializeField] private float parryRadius = 1.5f;
+    [Tooltip("Kekuatan dorongan peluncuran pemain saat Parry sukses")]
+    [SerializeField] private float parryLaunchForce = 20f;
+    [Tooltip("Kekuatan knockback yang diberikan ke musuh saat ter-parry")]
+    [SerializeField] private float parryEnemyKnockback = 12f;
+    [Tooltip("Waktu jeda/transisi dari Parry sebelum bisa melakukan Shoot atau Parry lagi")]
+    [SerializeField] private float parryTransitionTime = 0.4f;
+    [SerializeField] private LayerMask enemyLayer;
 
     [Header("References")]
     [SerializeField] private HingeJoint2D hinge;
@@ -40,10 +50,17 @@ public class BayonetController : MonoBehaviour
 
     private Rigidbody2D bayonetRb;
     private Camera mainCamera;
-
     private Vector2 currentScreenMousePos;
-    private bool isShootPending;
-    private float lastShootTime = -999f;
+    private float lastActionTime = -999f;
+
+    // Properties State Machine & Timing
+    public StateMachine StateMachine { get; private set; }
+    public BayonetIdleState IdleState { get; private set; }
+    public BayonetShootingState ShootingState { get; private set; }
+    public BayonetParryingState ParryingState { get; private set; }
+
+    public float ShootTransitionTime => shootTransitionTime;
+    public float ParryTransitionTime => parryTransitionTime;
 
     private void Awake()
     {
@@ -56,22 +73,33 @@ public class BayonetController : MonoBehaviour
 
         if (basePivot == null)
         {
-            Debug.LogError(
-                $"[{nameof(BayonetController)}] '{nameof(basePivot)}' belum di-assign pada '{name}'. " +
-                "Assign transform BasePivot (child dari rig lengan) di Inspector.", this);
+            Debug.LogError($"[{nameof(BayonetController)}] '{nameof(basePivot)}' belum di-assign pada '{name}'.", this);
         }
+
+        // Inisialisasi State Machine & States
+        StateMachine = new StateMachine();
+        IdleState = new BayonetIdleState(this);
+        ShootingState = new BayonetShootingState(this);
+        ParryingState = new BayonetParryingState(this);
+    }
+
+    private void Start()
+    {
+        StateMachine.Initialize(IdleState);
     }
 
     private void OnEnable()
     {
         Controls.OnLookAtChanged += HandleLookAtChanged;
         Controls.OnShootStarted += HandleShootStarted;
+        Controls.OnParryPressed += HandleParryPressed;
     }
 
     private void OnDisable()
     {
         Controls.OnLookAtChanged -= HandleLookAtChanged;
         Controls.OnShootStarted -= HandleShootStarted;
+        Controls.OnParryPressed -= HandleParryPressed;
     }
 
     private void OnValidate()
@@ -80,18 +108,42 @@ public class BayonetController : MonoBehaviour
         controlRadius = Mathf.Max(minPivotRadius, controlRadius);
     }
 
+    private void Update()
+    {
+        StateMachine.Update();
+    }
+
+    private void FixedUpdate()
+    {
+        StateMachine.FixedUpdate();
+    }
+
+    #region Input Handlers
+
     private void HandleLookAtChanged(Vector2 mouseScreenPosition) => currentScreenMousePos = mouseScreenPosition;
 
     private void HandleShootStarted()
     {
         if (!Controls.IsInputEnabled) return;
-        if (Time.time < lastShootTime + shootCooldown) return;
+        if (StateMachine.CurrentState != IdleState) return;
+        if (Time.time < lastActionTime + shootCooldown) return;
 
-        isShootPending = true;
-        lastShootTime = Time.time;
+        StateMachine.ChangeState(ShootingState);
     }
 
-    private void FixedUpdate()
+    private void HandleParryPressed()
+    {
+        if (!Controls.IsInputEnabled) return;
+        if (StateMachine.CurrentState != IdleState) return;
+
+        StateMachine.ChangeState(ParryingState);
+    }
+
+    #endregion
+
+    #region Movement & Aiming
+
+    public void ProcessAimingAndPositioning()
     {
         if (!Controls.IsInputEnabled || hinge.connectedBody == null || basePivot == null)
             return;
@@ -109,12 +161,6 @@ public class BayonetController : MonoBehaviour
         {
             bayonetRb.angularVelocity = 0f;
         }
-
-        if (isShootPending)
-        {
-            ExecuteShootAndKnockback();
-            isShootPending = false;
-        }
     }
 
     private Vector2 GetMouseWorldPosition()
@@ -124,10 +170,6 @@ public class BayonetController : MonoBehaviour
         return mainCamera.ScreenToWorldPoint(screenPointWithDepth);
     }
 
-    /// <summary>
-    /// Menggeser connectedAnchor hinge sepanjang arah mouse, dibatasi antara minPivotRadius
-    /// dan controlRadius dari basePivot saat ini (mengikuti rig lengan).
-    /// </summary>
     private void UpdateAnchorPosition(Vector2 pivotPosition, Vector2 toMouse)
     {
         float targetDistance = Mathf.Clamp(toMouse.magnitude, minPivotRadius, controlRadius);
@@ -169,7 +211,13 @@ public class BayonetController : MonoBehaviour
             : (Vector2)transform.right;
     }
 
-    private void ExecuteShootAndKnockback()
+    #endregion
+
+    #region Action Execution Logic
+
+    public void UpdateLastActionTime() => lastActionTime = Time.time;
+
+    public void ExecuteShootAndKnockback()
     {
         Vector2 trajectoryDir = GetTrajectoryDirection();
 
@@ -181,7 +229,7 @@ public class BayonetController : MonoBehaviour
             playerRb.AddForce(-trajectoryDir * recoilForce, ForceMode2D.Impulse);
         }
 
-        RaycastHit2D raycastCollider = Physics2D.Raycast(GetActualAnchorWorldPosition(), trajectoryDir, shootRange, LayerMask.GetMask("Enemy"));
+        RaycastHit2D raycastCollider = Physics2D.Raycast(GetActualAnchorWorldPosition(), trajectoryDir, shootRange, enemyLayer);
         if (!raycastCollider) return;
 
         EnemyHealth targetHealth = raycastCollider.collider.GetComponentInParent<EnemyHealth>();
@@ -189,24 +237,64 @@ public class BayonetController : MonoBehaviour
 
         if (targetHealth != null)
         {
-            if (targetHealth.Health != null)
-            {
-                targetHealth.Health.TakeDamage(10f);
-            }
-
+            targetHealth.Health?.TakeDamage(10f);
             Debug.Log($"Hit {raycastCollider.collider.name} for 10 damage!");
         }
-        else
-        {
-            Debug.LogWarning($"Hit {raycastCollider.collider.name}, tapi komponen 'EnemyHealth' tidak ditemukan!");
-        }
 
-        // Apply Knockback jika Rigidbody2D ditemukan
         if (targetRb != null)
         {
             targetRb.AddForce(trajectoryDir * shootForce, ForceMode2D.Impulse);
         }
     }
+
+    public void ExecuteParryLogic()
+    {
+        Vector2 trajectoryDir = GetTrajectoryDirection();
+        Vector2 parryPoint = shootDir != null ? (Vector2)shootDir.position : (Vector2)transform.position;
+
+        Collider2D hitEnemy = Physics2D.OverlapCircle(parryPoint, parryRadius, enemyLayer);
+
+        if (hitEnemy != null)
+        {
+            IDamageableParryable parryableTarget = hitEnemy.GetComponentInParent<IDamageableParryable>();
+
+            if (parryableTarget != null && parryableTarget.TryParry())
+            {
+                Debug.Log($"<color=green>[Parry Success]</color> Berhasil mem-parry {hitEnemy.name}!");
+
+                Rigidbody2D playerRb = hinge.connectedBody;
+                if (playerRb != null)
+                {
+#if UNITY_6000_0_OR_NEWER
+                    playerRb.linearVelocity = Vector2.zero;
+#else
+                    playerRb.velocity = Vector2.zero;
+#endif
+                    playerRb.AddForce(-trajectoryDir * parryLaunchForce, ForceMode2D.Impulse);
+                }
+
+                Rigidbody2D enemyRb = hitEnemy.GetComponentInParent<Rigidbody2D>();
+                if (enemyRb != null)
+                {
+                    enemyRb.AddForce(trajectoryDir * parryEnemyKnockback, ForceMode2D.Impulse);
+                }
+
+                bayonetRb.AddForce(trajectoryDir * shootForce, ForceMode2D.Impulse);
+            }
+            else
+            {
+                Debug.Log("<color=orange>[Parry Missed / Failed]</color> Musuh sedang tidak dalam Parry Window!");
+            }
+        }
+        else
+        {
+            Debug.Log("[Parry Missed] Tidak ada target dalam radius parry.");
+        }
+    }
+
+    #endregion
+
+    #region Gizmos
 
     private void OnDrawGizmos()
     {
@@ -217,11 +305,9 @@ public class BayonetController : MonoBehaviour
             ? GetActualAnchorWorldPosition()
             : pivotPosition;
 
-        // Min radius (batas terdekat)
         Gizmos.color = new Color(1f, 0.3f, 0f);
         Gizmos.DrawWireSphere(pivotPosition, minPivotRadius);
 
-        // Control radius (batas terjauh)
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(pivotPosition, controlRadius);
 
@@ -233,10 +319,19 @@ public class BayonetController : MonoBehaviour
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(currentAnchorPoint, 0.08f);
 
+        Vector2 parryPoint = shootDir != null ? (Vector2)shootDir.position : (Vector2)transform.position;
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(parryPoint, parryRadius);
+
+        Gizmos.color = Color.magenta;
+        Gizmos.DrawRay(pivotPosition, -trajectoryDirection * (parryLaunchForce * 0.1f));
+
         if (shootDir != null)
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawLine(currentAnchorPoint, (Vector2)shootDir.position + trajectoryDirection * shootRange);
         }
     }
+
+    #endregion
 }
