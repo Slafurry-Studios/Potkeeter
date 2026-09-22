@@ -33,6 +33,9 @@ public class AudioSystem : GameSystem<AudioSystem>
     [SerializeField] private Sound[] musicSounds;
     [SerializeField] private Sound[] sfxSounds;
 
+    private Sound currentMusicTrack;
+    private Coroutine musicFadeCoroutine;
+
     public override int Priority => 0;
 
     public override IEnumerator Initialize()
@@ -43,9 +46,7 @@ public class AudioSystem : GameSystem<AudioSystem>
         yield break;
     }
 
-    public override void PostInitialize()
-    {
-    }
+    public override void PostInitialize() { }
 
     private void InitializeTracks(Sound[] sounds, AudioMixerGroup group)
     {
@@ -74,21 +75,98 @@ public class AudioSystem : GameSystem<AudioSystem>
         }
     }
 
-    public void PlayMusic(string name, bool waitForCompletion = false)
+    private float EaseInOut(float t)
     {
-        Sound sound = FindSound(musicSounds, name);
+        return t * t * (3f - 2f * t);
+    }
 
-        if (sound == null || sound.source == null)
+    public void PlayMusic(string name, float fadeDuration = 1.0f)
+    {
+        Sound newTrack = FindSound(musicSounds, name);
+
+        if (newTrack == null || newTrack.source == null)
             return;
 
-        if (waitForCompletion && sound.source.isPlaying)
+        if (currentMusicTrack == newTrack && currentMusicTrack.source.isPlaying)
+            return;
+
+        if (musicFadeCoroutine != null)
+            StopCoroutine(musicFadeCoroutine);
+
+        musicFadeCoroutine = StartCoroutine(CrossfadeMusicRoutine(newTrack, fadeDuration));
+    }
+
+    public void StopMusicWithFade(float fadeDuration = 1.0f)
+    {
+        if (currentMusicTrack == null || !currentMusicTrack.source.isPlaying)
+            return;
+
+        if (musicFadeCoroutine != null)
+            StopCoroutine(musicFadeCoroutine);
+
+        musicFadeCoroutine = StartCoroutine(FadeOutCurrentMusicRoutine(fadeDuration));
+    }
+
+    private IEnumerator CrossfadeMusicRoutine(Sound newTrack, float duration)
+    {
+        Sound oldTrack = currentMusicTrack;
+        currentMusicTrack = newTrack;
+
+        newTrack.source.volume = 0f;
+        if (!newTrack.source.isPlaying)
+            newTrack.source.Play();
+
+        float timer = 0f;
+
+        while (timer < duration)
         {
-            StartCoroutine(PlayAfterCompletion(sound));
-            return;
+            timer += Time.deltaTime;
+            float progress = Mathf.Clamp01(timer / duration);
+            float easedProgress = EaseInOut(progress);
+
+            // Fade out old track
+            if (oldTrack != null && oldTrack.source != null)
+            {
+                oldTrack.source.volume = Mathf.Lerp(oldTrack.volume, 0f, easedProgress);
+            }
+
+            // Fade in new track
+            newTrack.source.volume = Mathf.Lerp(0f, newTrack.volume, easedProgress);
+
+            yield return null;
         }
 
-        if (!sound.source.isPlaying)
-            sound.source.Play();
+        // Finalize volumes and states
+        if (oldTrack != null && oldTrack.source != null)
+        {
+            oldTrack.source.Stop();
+            oldTrack.source.volume = oldTrack.volume;
+        }
+
+        newTrack.source.volume = newTrack.volume;
+        musicFadeCoroutine = null;
+    }
+
+    private IEnumerator FadeOutCurrentMusicRoutine(float duration)
+    {
+        Sound oldTrack = currentMusicTrack;
+        float startVolume = oldTrack.source.volume;
+        float timer = 0f;
+
+        while (timer < duration)
+        {
+            timer += Time.deltaTime;
+            float progress = Mathf.Clamp01(timer / duration);
+            float easedProgress = EaseInOut(progress);
+
+            oldTrack.source.volume = Mathf.Lerp(startVolume, 0f, easedProgress);
+            yield return null;
+        }
+
+        oldTrack.source.Stop();
+        oldTrack.source.volume = oldTrack.volume;
+        currentMusicTrack = null;
+        musicFadeCoroutine = null;
     }
 
     public void PlaySFX(string name, bool waitForCompletion = false)
@@ -113,7 +191,11 @@ public class AudioSystem : GameSystem<AudioSystem>
         Sound sound = FindSound(musicSounds, name);
 
         if (sound?.source != null && sound.source.isPlaying)
+        {
             sound.source.Stop();
+            if (currentMusicTrack == sound)
+                currentMusicTrack = null;
+        }
     }
 
     public void StopSFX(string name)
@@ -138,10 +220,7 @@ public class AudioSystem : GameSystem<AudioSystem>
 
     private Sound FindSound(Sound[] sounds, string name)
     {
-        Sound sound = Array.Find(
-            sounds,
-            item => item != null && item.name == name
-        );
+        Sound sound = Array.Find(sounds, item => item != null && item.name == name);
 
         if (sound == null)
         {
@@ -161,25 +240,24 @@ public class AudioSystem : GameSystem<AudioSystem>
     private IEnumerator PlayAfterCompletion(Sound sound)
     {
         yield return new WaitUntil(() => !sound.source.isPlaying);
-
         sound.source.Play();
     }
 
     public void UpdateMasterVolume(float volume)
     {
-        masterGroup.audioMixer.SetFloat("MasterVolume", Mathf.Log10(volume) * 20);
+        masterGroup.audioMixer.SetFloat("MasterVolume", Mathf.Log10(Mathf.Max(0.0001f, volume)) * 20);
         PlayerPrefs.SetFloat("MasterVolume", volume);
     }
 
     public void UpdateMusicVolume(float volume)
     {
-        musicGroup.audioMixer.SetFloat("MusicVolume", Mathf.Log10(volume) * 20);
+        musicGroup.audioMixer.SetFloat("MusicVolume", Mathf.Log10(Mathf.Max(0.0001f, volume)) * 20);
         PlayerPrefs.SetFloat("MusicVolume", volume);
     }
 
     public void UpdateSFXVolume(float volume)
     {
-        sfxGroup.audioMixer.SetFloat("SFXVolume", Mathf.Log10(volume) * 20);
+        sfxGroup.audioMixer.SetFloat("SFXVolume", Mathf.Log10(Mathf.Max(0.0001f, volume)) * 20);
         PlayerPrefs.SetFloat("SFXVolume", volume);
     }
 }
