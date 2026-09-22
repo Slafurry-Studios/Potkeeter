@@ -1002,11 +1002,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7291cdd56afb730438bf527b2584d52d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  masterGroup: {fileID: 0}
-  musicGroup: {fileID: 24300002, guid: 8720c47b9924761468c0f96649b043cf, type: 2}
-  sfxGroup: {fileID: 24300002, guid: 688de49d2f2775d4c80127058b27fe40, type: 2}
+  masterGroup: {fileID: 24300002, guid: 9c17d909dc54072408ce5e8ca398ad68, type: 2}
+  musicGroup: {fileID: 4192860670526800350, guid: 9c17d909dc54072408ce5e8ca398ad68, type: 2}
+  sfxGroup: {fileID: 6456845734798214917, guid: 9c17d909dc54072408ce5e8ca398ad68, type: 2}
   musicSounds: []
-  sfxSounds: []
+  sfxSounds:
+  - name: ParrySFX
+    clip: {fileID: 8300000, guid: 2fe3f96a4b63aac4fae85a58beeb8923, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
 --- !u!4 &5435900409957977122
 Transform:
   m_ObjectHideFlags: 0

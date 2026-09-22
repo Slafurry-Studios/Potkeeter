@@ -265,11 +265,7 @@ public class BayonetController : MonoBehaviour
                 Rigidbody2D playerRb = hinge.connectedBody;
                 if (playerRb != null)
                 {
-#if UNITY_6000_0_OR_NEWER
-                    playerRb.linearVelocity = Vector2.zero;
-#else
                     playerRb.velocity = Vector2.zero;
-#endif
                     playerRb.AddForce(-trajectoryDir * parryLaunchForce, ForceMode2D.Impulse);
                 }
 
@@ -278,8 +274,9 @@ public class BayonetController : MonoBehaviour
                 {
                     enemyRb.AddForce(trajectoryDir * parryEnemyKnockback, ForceMode2D.Impulse);
                 }
-
+    
                 bayonetRb.AddForce(trajectoryDir * shootForce, ForceMode2D.Impulse);
+                AudioSystem.Instance?.PlaySFX("ParrySFX", waitForCompletion: false);
             }
             else
             {
