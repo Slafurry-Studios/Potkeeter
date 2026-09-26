@@ -81,6 +81,17 @@ public class EnemyShooter : MonoBehaviour
         _nextShotTime = now;
     }
 
+    /// <summary>
+    /// Membatalkan burst yang sedang jalan dan menunda burst berikutnya.
+    /// Dipanggil DroneController.OnParried() supaya counter tidak langsung
+    /// diserobot sisa peluru yang sudah terlanjur keluar dari laras.
+    /// </summary>
+    public void Interrupt()
+    {
+        _burstRemaining = 0;
+        _nextBurstTime = Time.time + fireInterval;
+    }
+
     /// <summary>Memutar laras ke arah target. Mengembalikan true kalau sudah cukup terbidik.</summary>
     private bool AimAt(Vector2 target)
     {

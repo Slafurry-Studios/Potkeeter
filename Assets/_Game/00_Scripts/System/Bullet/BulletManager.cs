@@ -43,6 +43,14 @@ public class BulletManager : LocalSingleton<BulletManager>
     // mana yang punya instance ini.
     private readonly Dictionary<Bullet, GenericPool<Bullet>> _poolOf = new Dictionary<Bullet, GenericPool<Bullet>>();
 
+    // Peluru yang sedang terbang. Ini satu-satunya cara parry bisa
+    // menemukan peluru: peluru tidak punya collider, jadi tidak ada query
+    // Physics2D yang bisa mencarinya.
+    private readonly List<Bullet> _active = new List<Bullet>();
+
+    /// <summary>Peluru yang sedang di udara, untuk dicek parry.</summary>
+    public IReadOnlyList<Bullet> ActiveBullets => _active;
+
     public int PoolCount => _pools.Count;
 
     public int ActiveCount
@@ -77,6 +85,7 @@ public class BulletManager : LocalSingleton<BulletManager>
         foreach (KeyValuePair<Bullet, GenericPool<Bullet>> pair in _pools) pair.Value.Clear();
         _pools.Clear();
         _poolOf.Clear();
+        _active.Clear();
     }
 
     /// <summary>
@@ -90,6 +99,7 @@ public class BulletManager : LocalSingleton<BulletManager>
 
         Bullet bullet = pool.Get();
         _poolOf[bullet] = pool;
+        _active.Add(bullet);
         bullet.Launch(origin, direction);
         return bullet;
     }
@@ -104,6 +114,7 @@ public class BulletManager : LocalSingleton<BulletManager>
         if (!_poolOf.TryGetValue(bullet, out GenericPool<Bullet> pool)) return;
 
         _poolOf.Remove(bullet);
+        _active.Remove(bullet);
         pool.Release(bullet);
     }
 

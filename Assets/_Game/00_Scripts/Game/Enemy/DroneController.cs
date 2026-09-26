@@ -16,11 +16,10 @@ using UnityEngine;
 /// Gerak memakai velocity, bukan MovePosition, karena parry dari
 /// BayonetController mengirim AddForce ke Rigidbody2D musuh. Body kinematic
 /// akan mengabaikan AddForce, jadi knockback parry tidak akan terlihat sama
-/// sekali. Karena itu state Stunned sengaja TIDAK menulis velocity, biar
-/// impuls knockback itu bebas meredup sendiri lewat drag.
+/// sekali.
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
-public class DroneController : MonoBehaviour, IDamageableParryable
+public class DroneController : MonoBehaviour, IParryable
 {
     [Header("References")]
     [SerializeField] private Rigidbody2D body;
@@ -61,15 +60,14 @@ public class DroneController : MonoBehaviour, IDamageableParryable
     [SerializeField, Min(0f)] private float patrolWait = 0.7f;
 
     [Header("Parry")]
-    [Tooltip("Berapa lama drone lumpuh setelah diparry.")]
-    [SerializeField, Min(0.1f)] private float stunDuration = 1.2f;
+    [Tooltip("Seberapa lama semua laras drone ditahan setelah diparry, jadi dia tidak langsung menembak balik.")]
+    [SerializeField, Min(0f)] private float parryFireLockout = 0.8f;
 
     // Dipisah supaya state tidak perlu memanggil Time.time sendiri.
     public StateMachine StateMachine { get; private set; }
     public DronePatrolState PatrolState { get; private set; }
     public DroneChaseState ChaseState { get; private set; }
     public DroneAttackState AttackState { get; private set; }
-    public DroneStunnedState StunnedState { get; private set; }
 
     public IReadOnlyList<EnemyShooter> Shooters => _shooters;
 
@@ -79,8 +77,7 @@ public class DroneController : MonoBehaviour, IDamageableParryable
     private float _patrolWaitUntil;
     private float _hoverPhase;
     private float _visualBaseY;
-    private float _stunUntil;
-    private bool _stunned;
+    private float _parryFireLockoutUntil;
 
     private void Awake()
     {
@@ -114,7 +111,6 @@ public class DroneController : MonoBehaviour, IDamageableParryable
         PatrolState = new DronePatrolState(this);
         ChaseState = new DroneChaseState(this);
         AttackState = new DroneAttackState(this);
-        StunnedState = new DroneStunnedState(this);
     }
 
     private void Start()
@@ -162,19 +158,8 @@ public class DroneController : MonoBehaviour, IDamageableParryable
     /// </summary>
     public bool TargetBeyondEngageRange => DistanceToTarget > loseRange;
 
-    public bool IsStunned => _stunned;
-
-    public void EnterStun()
-    {
-        _stunned = true;
-        _stunUntil = Time.time + stunDuration;
-        StateMachine.ChangeState(StunnedState);
-    }
-
-    public void UpdateStun()
-    {
-        if (_stunned && Time.time >= _stunUntil) _stunned = false;
-    }
+    /// <summary>Sisa waktu lockout tembak, dibaca EnemyShooter tiap tick.</summary>
+    public float ParryFireLockoutRemaining => Mathf.Max(0f, _parryFireLockoutUntil - Time.time);
 
     public void PatrolStep()
     {
@@ -261,6 +246,10 @@ public class DroneController : MonoBehaviour, IDamageableParryable
     /// </summary>
     public void TickShooters()
     {
+        // Lockout parry: laras ditahan dulu, jadi counter punya jendela yang
+        // bisa dipakai player sebelum drone menembak balik.
+        if (ParryFireLockoutRemaining > 0f) return;
+
         Vector2 target = TargetPosition;
         for (int i = 0; i < _shooters.Count; i++)
         {
@@ -312,20 +301,20 @@ public class DroneController : MonoBehaviour, IDamageableParryable
         visual.localPosition = local;
     }
 
-    // ===== IDamageableParryable =====
+    // ===== IParryable =====
 
     /// <summary>
-    /// Dipanggil BayonetController saat parry kena. Knockback tidak diterapkan
-    /// di sini karena BayonetController sudah AddForce sendiri ke Rigidbody2D
-    /// target.
+    /// Dipanggil BayonetController saat drone berada di area parry. Knockback
+    /// tidak diterapkan di sini karena BayonetController sudah AddForce sendiri
+    /// ke Rigidbody2D target.
+    ///
+    /// Yang dilakukan drone hanya menahan tembakannya, supaya counter itu
+    /// memberi jendela yang bisa dipakai player dan bukan sekadar dorongan
+    /// yang lewat begitu saja.
     /// </summary>
-    public bool TryParry()
+    public void OnParried()
     {
-        // Kalau sudah lumpuh, parry kedua tidak menambah durasi stun. Ini juga
-        // alasan method ini mengembalikan false: parry di luar window.
-        if (_stunned) return false;
-
-        EnterStun();
-        return true;
+        _parryFireLockoutUntil = Time.time + parryFireLockout;
+        foreach (EnemyShooter shooter in _shooters) shooter?.Interrupt();
     }
 }

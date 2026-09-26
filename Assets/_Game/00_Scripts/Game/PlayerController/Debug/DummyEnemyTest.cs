@@ -2,14 +2,14 @@ using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D), typeof(EnemyHealth))]
-public class DummyEnemyTest : MonoBehaviour, IDamageableParryable
+public class DummyEnemyTest : MonoBehaviour, IParryable
 {
     [Header("Attack Timing Settings")]
     [SerializeField] private float attackInterval = 3f;
     [SerializeField] private float windUpDuration = 0.4f;
-    [SerializeField] private float parryWindowDuration = 0.2f; // Jendela waktu emas parry (sebelum hit)
     [SerializeField] private float activeHitboxDuration = 0.2f;
-    [SerializeField] private float stunDuration = 1.5f;
+    [Tooltip("Berapa lama lumpuh setelah diparry, hanya untuk feedback visual dummy ini.")]
+    [SerializeField] private float parryStunVisualDuration = 1.5f;
 
     [Header("Attack Hitbox Settings")]
     [SerializeField] private Transform attackPoint;
@@ -21,16 +21,14 @@ public class DummyEnemyTest : MonoBehaviour, IDamageableParryable
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private Color idleColor = Color.white;
     [SerializeField] private Color warningColor = Color.yellow;   // Wind-up awal
-    [SerializeField] private Color parryableColor = Color.cyan;   // Parry window aktif!
-    [SerializeField] private Color attackColor = Color.red;       // Active hit (Sudah terlambat diparry)
-    [SerializeField] private Color stunColor = Color.gray;        // Stun saat ter-parry
+    [SerializeField] private Color attackColor = Color.red;       // Active hit
+    [SerializeField] private Color parriedColor = Color.gray;     // Sedang dicounter parry
 
     public StateMachine StateMachine { get; private set; }
     public IdleState idleState { get; private set; }
     public AttackState attackState { get; private set; }
-    public StunnedState stunnedState { get; private set; }
+    public ParriedState parriedState { get; private set; }
 
-    public bool IsParryable { get; private set; }
     public bool IsHurtboxActive { get; private set; }
 
     private EnemyHealth enemyHealth;
@@ -46,7 +44,7 @@ public class DummyEnemyTest : MonoBehaviour, IDamageableParryable
         StateMachine = new StateMachine();
         idleState = new IdleState(this);
         attackState = new AttackState(this);
-        stunnedState = new StunnedState(this);
+        parriedState = new ParriedState(this);
     }
 
     private void Start()
@@ -65,15 +63,11 @@ public class DummyEnemyTest : MonoBehaviour, IDamageableParryable
         StateMachine.FixedUpdate();
     }
 
-    public bool TryParry()
-    {
-        if (IsParryable)
-        {
-            StateMachine.ChangeState(stunnedState);
-            return true;
-        }
-        return false;
-    }
+    /// <summary>
+    /// Dipanggil saat dummy ini berada di area parry. Tidak ada syarat apa
+    /// pun: area parry yang menentukan, bukan state dummy.
+    /// </summary>
+    public void OnParried() => StateMachine.ChangeState(parriedState);
 
     public void SetColor(Color color)
     {
@@ -93,7 +87,6 @@ public class DummyEnemyTest : MonoBehaviour, IDamageableParryable
         }
     }
 
-    public void SetParryableState(bool state) => IsParryable = state;
     public void SetHurtboxActiveState(bool state) => IsHurtboxActive = state;
 
     private void OnDrawGizmos()
@@ -103,11 +96,6 @@ public class DummyEnemyTest : MonoBehaviour, IDamageableParryable
         if (IsHurtboxActive)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawSphere(point, attackRadius);
-        }
-        else if (IsParryable)
-        {
-            Gizmos.color = Color.cyan;
             Gizmos.DrawSphere(point, attackRadius);
         }
         else
@@ -129,7 +117,6 @@ public class DummyEnemyTest : MonoBehaviour, IDamageableParryable
         public void Enter()
         {
             enemy.SetColor(enemy.idleColor);
-            enemy.SetParryableState(false);
             enemy.SetHurtboxActiveState(false);
             timer = 0f;
         }
@@ -161,17 +148,13 @@ public class DummyEnemyTest : MonoBehaviour, IDamageableParryable
 
         private IEnumerator AttackSequence()
         {
-            // 1. Wind-Up Phase (Warning - Belum bisa diparry)
+            // 1. Wind-Up (kuning) - memberi tanda serangan mau masuk
             enemy.SetColor(enemy.warningColor);
             yield return new WaitForSeconds(enemy.windUpDuration);
 
-            // 2. Parry Window Phase (Cyan - Window Emas untuk Player Parry!)
-            enemy.SetColor(enemy.parryableColor);
-            enemy.SetParryableState(true);
-            yield return new WaitForSeconds(enemy.parryWindowDuration);
-
-            // 3. Active Hitbox Phase (Merah - Serangan Aktif & Damage Masuk)
-            enemy.SetParryableState(false);
+            // 2. Active Hitbox (merah) - damage masuk. Selama durasi ini
+            // dummy tetap bisa diparry, karena yang menentukan cuma apakah
+            // dia masih berada di area parry.
             enemy.SetHurtboxActiveState(true);
             enemy.SetColor(enemy.attackColor);
 
@@ -189,31 +172,29 @@ public class DummyEnemyTest : MonoBehaviour, IDamageableParryable
         public void Exit()
         {
             if (attackRoutine != null) enemy.StopCoroutine(attackRoutine);
-            enemy.SetParryableState(false);
             enemy.SetHurtboxActiveState(false);
         }
     }
 
-    public class StunnedState : IState
+    public class ParriedState : IState
     {
         private readonly DummyEnemyTest enemy;
         private float timer;
 
-        public StunnedState(DummyEnemyTest enemy) => this.enemy = enemy;
+        public ParriedState(DummyEnemyTest enemy) => this.enemy = enemy;
 
         public void Enter()
         {
-            enemy.SetColor(enemy.stunColor);
-            enemy.SetParryableState(false);
+            enemy.SetColor(enemy.parriedColor);
             enemy.SetHurtboxActiveState(false);
             timer = 0f;
-            Debug.Log("<color=cyan>[Dummy Enemy] STUNNED / PARRIED!</color>");
+            Debug.Log("<color=cyan>[Dummy Enemy] PARRIED!</color>");
         }
 
         public void Update()
         {
             timer += Time.deltaTime;
-            if (timer >= enemy.stunDuration)
+            if (timer >= enemy.parryStunVisualDuration)
             {
                 enemy.StateMachine.ChangeState(enemy.idleState);
             }

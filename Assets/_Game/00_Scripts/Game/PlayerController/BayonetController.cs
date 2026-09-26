@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using Slafurry.System.InputHub;
 using Slafurry.Utils.VFX;
@@ -44,7 +46,8 @@ public class BayonetController : MonoBehaviour
     [SerializeField] private float parryEnemyKnockback = 12f;
     [Tooltip("Waktu jeda/transisi dari Parry sebelum bisa melakukan Shoot atau Parry lagi")]
     [SerializeField] private float parryTransitionTime = 0.4f;
-    [SerializeField] private LayerMask enemyLayer;
+    [Tooltip("Layer yang dicari di area parry untuk sumber damage BERBASIS COLLIDER (musuh, jebakan). Peluru tidak perlu dicentang di sini - peluru dicari langsung lewat BulletManager karena tidak punya collider. Kalau kosong, parry hanya bisa menetralkan peluru.")]
+    [SerializeField] private LayerMask parryRadiusMask;
 
     [Header("References")]
     [SerializeField] private HingeJoint2D hinge;
@@ -59,6 +62,10 @@ public class BayonetController : MonoBehaviour
     private Vector2 currentScreenMousePos;
     private float lastActionTime = -999f;
 
+    // Kapan peluru terakhir keluar. Dipakai reload untuk tahu bahwa
+    // lastActionTime masih nilai lama dari aksi sebelumnya.
+    private float reloadStart = -999f;
+
     // Properties State Machine & Timing
     public StateMachine StateMachine { get; private set; }
     public BayonetIdleState IdleState { get; private set; }
@@ -66,6 +73,24 @@ public class BayonetController : MonoBehaviour
     public BayonetParryingState ParryingState { get; private set; }
 
     public float ShootTransitionTime => shootTransitionTime;
+
+    /// <summary>
+    /// True di antara peluru keluar dan pistol siap menembak lagi. Ini
+    /// reload pada proyek ini: tidak ada magazine atau ammo, jadi yang
+    /// "dimuat ulang" hanyalah pistol yang sedang dikunci cooldown.
+    /// </summary>
+    public bool IsReloading { get; private set; }
+
+    /// <summary>
+    /// Progres reload 0..1. 1 berarti pistol sudah boleh ditembakkan lagi,
+    /// jadi angkanya sama persis dengan sisa gerbang di HandleShootStarted.
+    /// </summary>
+    public float ReloadProgress { get; private set; }
+
+    /// <summary>Dipanggil HUD lewat ReloadSliderHUD, bukan per-frame.</summary>
+    public event Action OnReloadStarted;
+
+    public event Action OnReloadFinished;
     public float ParryTransitionTime => parryTransitionTime;
 
     /// <summary>
@@ -81,6 +106,11 @@ public class BayonetController : MonoBehaviour
         if (hinge == null) hinge = GetComponent<HingeJoint2D>();
         if (parryVFX == null) parryVFX = GetComponentInParent<ParryVFX>();
         mainCamera = Camera.main;
+
+        if (parryRadiusMask.value == 0)
+        {
+            Debug.LogWarning($"[{nameof(BayonetController)}] parryRadiusMask kosong, parry tidak akan bisa menetralkan musuh atau jebakan. Centang Enemy.", this);
+        }
 
         hinge.useMotor = false;
         bayonetRb.useFullKinematicContacts = true;
@@ -125,6 +155,28 @@ public class BayonetController : MonoBehaviour
     private void Update()
     {
         StateMachine.Update();
+        UpdateReloadState();
+    }
+
+    /// <summary>
+    /// Menghitung sisa waktu sampai pistol siap ditembakkan. Selesainya
+    /// reload sengaja memakai ekspresi yang sama persis dengan gerbang di
+    /// HandleShootStarted, jadi HUD dan mech tidak mungkin berbeda pendapat.
+    ///
+    /// lastActionTime baru ditulis di ShootingState.Exit(), shootTransitionTime
+    /// setelah peluru keluar. Selama masih nilai lama dari aksi sebelumnya,
+    /// sisa waktunya belum bisa dihitung, jadi tunggu dulu.
+    /// </summary>
+    private void UpdateReloadState()
+    {
+        if (!IsReloading) return;
+        if (lastActionTime < reloadStart) return;
+
+        ReloadProgress = Mathf.Clamp01((Time.time - lastActionTime) / EffectiveShootCooldown);
+        if (ReloadProgress < 1f) return;
+
+        IsReloading = false;
+        OnReloadFinished?.Invoke();
     }
 
     private void FixedUpdate()
@@ -255,6 +307,16 @@ public class BayonetController : MonoBehaviour
         // di ujung bilah, peluru tidak akan kena bilah bayonet sendiri.
         Vector2 muzzlePosition = shootDir != null ? (Vector2)shootDir.position : GetActualAnchorWorldPosition();
         BulletManager.Instance?.Spawn(bulletPrefab, muzzlePosition, trajectoryDir);
+        AudioSystem.Instance?.PlaySFX("Shoot", waitForCompletion: false);
+
+        // Reloading mulai di sini, bukan saat pistol siap. Suara "masuk
+        // peluru" nyambung langsung setelah tembakan, dan bar HUD mulai
+        // terisi selama pistol dikunci cooldown.
+        reloadStart = Time.time;
+        IsReloading = true;
+        ReloadProgress = 0f;
+        OnReloadStarted?.Invoke();
+        AudioSystem.Instance?.PlaySFX("Reloading", waitForCompletion: false);
     }
 
     public void ExecuteParryLogic()
@@ -262,48 +324,75 @@ public class BayonetController : MonoBehaviour
         Vector2 trajectoryDir = GetTrajectoryDirection();
         Vector2 parryPoint = shootDir != null ? (Vector2)shootDir.position : (Vector2)transform.position;
 
-        Collider2D hitEnemy = Physics2D.OverlapCircle(parryPoint, parryRadius, enemyLayer);
+        // Musuh, jebakan, dan sumber damage lain yang punya collider: cari lewat
+        // physics. Layer ini harus berisi semua sumber damage berbasis collider.
+        Collider2D[] hits = Physics2D.OverlapCircleAll(parryPoint, parryRadius, parryRadiusMask);
 
-        if (hitEnemy != null)
+        // Satu objek bisa punya beberapa collider (atau collider di beberapa
+        // anak), jadi hasil query dikumpulkan per IParryable supaya tidak
+        // dipanggil dua kali.
+        HashSet<IParryable> countered = new HashSet<IParryable>();
+        foreach (Collider2D hit in hits)
         {
-            IDamageableParryable parryableTarget = hitEnemy.GetComponentInParent<IDamageableParryable>();
+            IParryable parryable = hit.GetComponentInParent<IParryable>();
+            if (parryable == null || !countered.Add(parryable)) continue;
+            parryable.OnParried();
+        }
 
-            if (parryableTarget != null && parryableTarget.TryParry())
+        // Peluru tidak punya collider, jadi mustahil ditemukan query physics.
+        // Yang ditanyakan balik ke pelurunya sendiri, lewat kotak yang sama
+        // dengan yang dia pakai untuk menghantam.
+        BulletManager bullets = BulletManager.Instance;
+        if (bullets != null)
+        {
+            for (int i = bullets.ActiveBullets.Count - 1; i >= 0; i--)
             {
-                Debug.Log($"<color=green>[Parry Success]</color> Berhasil mem-parry {hitEnemy.name}!");
-
-                Rigidbody2D playerRb = hinge.connectedBody;
-                if (playerRb != null)
-                {
-                    playerRb.velocity = Vector2.zero;
-                    playerRb.AddForce(-trajectoryDir * parryLaunchForce, ForceMode2D.Impulse);
-                }
-
-                Rigidbody2D enemyRb = hitEnemy.GetComponentInParent<Rigidbody2D>();
-                if (enemyRb != null)
-                {
-                    enemyRb.AddForce(trajectoryDir * parryEnemyKnockback, ForceMode2D.Impulse);
-                }
-    
-                bayonetRb.AddForce(trajectoryDir * shootForce, ForceMode2D.Impulse);
-                AudioSystem.Instance?.PlaySFX("ParrySFX", waitForCompletion: false);
-
-                // Posisi dari ujung bayonet, rotasi dari bayonet itu sendiri.
-                // shootDir adalah child, jadi rotasinya bisa berbeda dari
-                // rotasi bayonet kalau ada offset lokal di tip-nya.
-                parryVFX?.PlayAt(parryPoint, transform.eulerAngles.z);
-
-                ParryMeter.Instance?.RegisterParry();
-            }
-            else
-            {
-                Debug.Log("<color=orange>[Parry Missed / Failed]</color> Musuh sedang tidak dalam Parry Window!");
+                Bullet bullet = bullets.ActiveBullets[i];
+                if (bullet == null || !bullet.IsInsideParryArea(parryPoint, parryRadius)) continue;
+                bullet.OnParried();
+                countered.Add(bullet);
             }
         }
-        else
+
+        if (countered.Count == 0)
         {
-            Debug.Log("[Parry Missed] Tidak ada target dalam radius parry.");
+            Debug.Log("[Parry Missed] Tidak ada sumber damage di area parry.");
+            return;
         }
+
+        foreach (IParryable parried in countered)
+        {
+            string who = parried is Component component ? component.name : parried.GetType().Name;
+            Debug.Log($"<color=green>[Parry Success]</color> Neutralisasi {who}!");
+        }
+
+        // Efek respons hanya berlaku kalau ada yang benar-benar di-counter, jadi
+        // parry meleset tidak ikut mendorong player.
+        Rigidbody2D playerRb = hinge.connectedBody;
+        if (playerRb != null)
+        {
+            playerRb.velocity = Vector2.zero;
+            playerRb.AddForce(-trajectoryDir * parryLaunchForce, ForceMode2D.Impulse);
+        }
+
+        // Musuh yang ter-counter terdorong searah bilah. Peluru tidak punya
+        // Rigidbody2D, jadi tidak mungkin disentuh di sini.
+        foreach (Collider2D hit in hits)
+        {
+            Rigidbody2D enemyRb = hit.GetComponentInParent<Rigidbody2D>();
+            if (enemyRb == playerRb || enemyRb == bayonetRb) continue;
+            enemyRb?.AddForce(trajectoryDir * parryEnemyKnockback, ForceMode2D.Impulse);
+        }
+
+        bayonetRb.AddForce(trajectoryDir * shootForce, ForceMode2D.Impulse);
+        AudioSystem.Instance?.PlaySFX("ParrySFX", waitForCompletion: false);
+
+        // Posisi dari ujung bayonet, rotasi dari bayonet itu sendiri.
+        // shootDir adalah child, jadi rotasinya bisa berbeda dari
+        // rotasi bayonet kalau ada offset lokal di tip-nya.
+        parryVFX?.PlayAt(parryPoint, transform.eulerAngles.z);
+
+        ParryMeter.Instance?.RegisterParry();
     }
 
     #endregion
