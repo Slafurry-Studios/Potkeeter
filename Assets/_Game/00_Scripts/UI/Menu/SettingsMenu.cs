@@ -18,20 +18,17 @@ public class SettingsMenu : MonoBehaviour
 
     private void Start()
     {
-        // Retrieve saved values
-        float masterVolume = PlayerPrefs.GetFloat(MasterKey, 1f);
-        float musicVolume = PlayerPrefs.GetFloat(MusicKey, 1f);
-        float sfxVolume = PlayerPrefs.GetFloat(SFXKey, 1f);
-
-        // Set slider values
-        _masterVolSlider.SetValueWithoutNotify(masterVolume);
-        _musicVolSlider.SetValueWithoutNotify(musicVolume);
-        _sfxVolSlider.SetValueWithoutNotify(sfxVolume);
-
-        // Listen for slider changes
+        // Listen first, then assign. Assigning .value fires the listener that
+        // was just added, so the saved value reaches both the slider and the
+        // mixer. SetValueWithoutNotify only moves the slider, which left the
+        // mixer on its own default until the player happened to drag something.
         _masterVolSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
         _musicVolSlider.onValueChanged.AddListener(OnMusicVolumeChanged);
         _sfxVolSlider.onValueChanged.AddListener(OnSFXVolumeChanged);
+
+        _masterVolSlider.value = PlayerPrefs.GetFloat(MasterKey, 1f);
+        _musicVolSlider.value = PlayerPrefs.GetFloat(MusicKey, 1f);
+        _sfxVolSlider.value = PlayerPrefs.GetFloat(SFXKey, 1f);
     }
 
     private void OnMasterVolumeChanged(float value)
