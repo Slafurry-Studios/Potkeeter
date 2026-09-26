@@ -88,7 +88,6 @@ Open the project in Unity Hub, let it import, then open the `Boot` scene to star
 | Role | Name |
 |---|---|
 | Project Manager, Game Designer, Level Designer | Lord Zaini (`haruto7013`) |
-| 2D Artist, Game Designer | csw (`csw177`) |
 | Audio Engineer | Ifanitas (`ifant2_56937`) |
 | Unity Programmer | Faiz2979. (`flamexq`) |
 
