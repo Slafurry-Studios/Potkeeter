@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using Slafurry.Utils.VFX;
 
 /// <summary>
 /// Menampilkan charge Parry sebagai bar. Menyetir Slider yang sudah ada di
@@ -38,6 +39,8 @@ public class ParryMeterHUD : MonoBehaviour
     [SerializeField] private Button debugParryButton;
     [Tooltip("Tampilkan tombol parry makeshift (OnGUI) kalau debugParryButton kosong. Matikan sebelum build.")]
     [SerializeField] private bool showDebugGuiButton = true;
+    [Tooltip("Spawner VFX parry, biar spark ikut muncul waktu debug. Kalau kosong, dicari otomatis.")]
+    [SerializeField] private ParryVFX parryVFX;
 
     private Coroutine bindRoutine;
     private bool isBound;
@@ -72,6 +75,8 @@ public class ParryMeterHUD : MonoBehaviour
         noiseSeed = Random.Range(0f, 500f);
 
         if (debugParryButton != null) debugParryButton.onClick.AddListener(DebugRegisterParry);
+
+        if (parryVFX == null) parryVFX = GetComponentInParent<ParryVFX>();
     }
 
     private void OnEnable() => bindRoutine = StartCoroutine(BindAndSubscribe());
@@ -148,6 +153,17 @@ public class ParryMeterHUD : MonoBehaviour
 
     /// <summary>
     /// Trik pengujian: isi charge tanpa perlu musuh untuk dip-parry.
+    ///
+    /// Jalur ini tidak lewat BayonetController.ExecuteParryLogic(), jadi
+    /// tidak ada apa pun dari parry sungguhan yang terjadi - tidak ada
+    /// knockback musuh, tidak ada cek radius, tidak ada log [Parry Success].
+    /// Yang dipalsukan di sini hanya meter, SFX, dan VFX-nya. Jadi ini
+    /// cuma bisa dipakai buat ngukur gauge dan iterasi sprite/animasi spark,
+    /// bukan buat memverifikasi mekanik parry-nya.
+    ///
+    /// Play() tanpa argumen memakai spawnPoint kalau di-assign, jadi arahkan
+    /// spawnPoint ke shootDir milik bayonet supaya posisi dan rotasinya sama
+    /// dengan parry sungguhan.
     /// </summary>
     private void DebugRegisterParry()
     {
@@ -155,6 +171,7 @@ public class ParryMeterHUD : MonoBehaviour
 
         ParryMeter.Instance.RegisterParry();
         AudioSystem.Instance?.PlaySFX("ParrySFX", waitForCompletion: false);
+        parryVFX?.Play();
     }
 
     private void OnGUI()
