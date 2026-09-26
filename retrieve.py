@@ -15,6 +15,10 @@ Rules:
   not a name conflict, it's the same file getting refreshed.
 - A file that's unchanged since last download -> not downloaded again.
 - A file flagged deleted_in_drive -> not downloaded.
+- --force -> IGNORES all of the above state (retrieve_status, name-conflict guard, unchanged
+  check) and re-downloads every file that is still in Drive, overwriting whatever sits at the
+  local path. Use it to repair a checkout whose files are stale/corrupt (e.g. Git LFS pointer
+  stubs left behind after moving off LFS) or to retry skipped_name_conflict entries.
 - Every run that downloads, updates, and/or skips at least one file sends a Discord notification.
 
 Example usage:
@@ -42,7 +46,7 @@ from core import discord_notifier, drive_client, state
 
 def run_retrieve(
     drive_folder_id, sa_file, sa_b64, state_file, download_dir, project_name, webhook_url,
-    gemini_api_key=None, gemini_model=None, gemini_persona=None,
+    gemini_api_key=None, gemini_model=None, gemini_persona=None, force=False,
 ):
     sa_info = drive_client.load_service_account_info(sa_file=sa_file, sa_b64=sa_b64)
     service = drive_client.build_service(sa_info)
@@ -79,6 +83,24 @@ def run_retrieve(
             continue
 
         retrieve_status = meta.get("retrieve_status")
+
+        if force:
+            # Force mode: skip the whole state machine. Re-download every Drive file that still
+            # exists and overwrite whatever is at its local path, no matter what the manifest
+            # claims. Note the local .meta files are never touched -- they only live in git.
+            local_rel_path = meta.get("downloaded_as") or meta["relative_path"]
+            dest = drive_client.download_file(
+                service, fid, meta["mimeType"], download_path / local_rel_path
+            )
+            downloaded_as = dest.relative_to(download_path).as_posix()
+            manifest[fid]["retrieve_status"] = "downloaded"
+            manifest[fid]["downloaded_as"] = downloaded_as
+            manifest[fid]["downloaded_modified_time"] = meta.get("modifiedTime")
+            existing_paths.add(downloaded_as)
+            # Report a first-time download as "downloaded" and a re-download as "updated",
+            # so the Discord summary stays truthful even though force does both in one go.
+            (retrieved if retrieve_status is None else updated).append(downloaded_as)
+            continue
 
         if retrieve_status is None:
             # Brand-new file we've never processed before.
@@ -145,6 +167,12 @@ def main():
         help="Optional. Describes the bot's character/personality/voice for the AI one-liner. "
              "Defaults to env GEMINI_PERSONA, or a built-in default persona if that's unset too.",
     )
+    parser.add_argument(
+        "--force", action="store_true",
+        help="Optional. Re-download EVERY file that is still in Drive and overwrite the local "
+             "copy, ignoring the manifest state and the name-conflict guard. Use after moving "
+             "off Git LFS to replace leftover pointer files, or to retry skipped files.",
+    )
     args = parser.parse_args()
 
     if not args.service_account_file and not args.service_account_b64:
@@ -161,9 +189,14 @@ def main():
         args.gemini_api_key,
         args.gemini_model,
         args.gemini_persona,
+        args.force,
     )
 
-    print(f"[{args.project_name}] Downloaded: {len(retrieved)}, Updated: {len(updated)}, Skipped (name conflict): {len(skipped)}")
+    prefix = "[FORCE] " if args.force else ""
+    print(
+        f"{prefix}[{args.project_name}] Downloaded: {len(retrieved)}, "
+        f"Updated: {len(updated)}, Skipped (name conflict): {len(skipped)}"
+    )
 
 
 if __name__ == "__main__":

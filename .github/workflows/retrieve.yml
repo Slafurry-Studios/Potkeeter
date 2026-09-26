@@ -1,7 +1,13 @@
 name: Retrieve New Drive Files
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force_update_all:
+        description: 'Force update ALL — re-download every Drive file and overwrite the local copy (use after moving off Git LFS)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -28,46 +34,88 @@ jobs:
         run: |
           git fetch origin main
 
-          rm -rf state \
-            Assets/_Game/02_Art/Sprite \
-            Assets/_Game/03_Audio
-
-          mkdir -p \
-            state \
-            Assets/_Game/02_Art/Sprite \
-            Assets/_Game/03_Audio
+          # state/ is always restored: the manifest is what tells us which files were already
+          # retrieved, and under which local name.
+          rm -rf state
+          mkdir -p state
 
           git archive origin/main -- state 2>/dev/null | tar -x || true
-          git archive origin/main -- Assets/_Game/02_Art/Sprite 2>/dev/null | tar -x || true
-          git archive origin/main -- Assets/_Game/03_Audio 2>/dev/null | tar -x || true
+
+          # The existing asset copies are only needed to detect real changes, so skip restoring
+          # them in force mode: everything gets re-downloaded over them anyway, and pulling the
+          # old ones down is wasted bandwidth.
+          if [ "${{ inputs.force_update_all }}" != "true" ]; then
+            rm -rf \
+              Assets/_Game/02_Art/Sprite \
+              Assets/_Game/03_Audio
+
+            mkdir -p \
+              Assets/_Game/02_Art/Sprite \
+              Assets/_Game/03_Audio
+
+            git archive origin/main -- Assets/_Game/02_Art/Sprite 2>/dev/null | tar -x || true
+            git archive origin/main -- Assets/_Game/03_Audio 2>/dev/null | tar -x || true
+          fi
 
       - name: Retrieve new sprite files
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           GEMINI_PERSONA: ${{ secrets.GEMINI_PERSONA }}
+          FORCE_UPDATE_ALL: ${{ inputs.force_update_all }}
         run: |
+          FORCE_FLAG=""
+          if [ "$FORCE_UPDATE_ALL" = "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+
           python retrieve.py \
             --drive-folder-id "${{ secrets.DRIVE_SPRITE_FOLDER_ID }}" \
             --service-account-b64 "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_B64 }}" \
             --state-file "state/sprite_manifest.json" \
             --download-dir "Assets/_Game/02_Art/Sprite" \
             --project-name "${{ github.repository }} (sprite)" \
-            --discord-webhook "${{ secrets.DISCORD_WEBHOOK_URL }}"
+            --discord-webhook "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            $FORCE_FLAG
 
       - name: Retrieve new audio files
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           GEMINI_PERSONA: ${{ secrets.GEMINI_PERSONA }}
+          FORCE_UPDATE_ALL: ${{ inputs.force_update_all }}
         run: |
+          FORCE_FLAG=""
+          if [ "$FORCE_UPDATE_ALL" = "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+
           python retrieve.py \
             --drive-folder-id "${{ secrets.DRIVE_AUDIO_FOLDER_ID }}" \
             --service-account-b64 "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_B64 }}" \
             --state-file "state/audio_manifest.json" \
             --download-dir "Assets/_Game/03_Audio" \
             --project-name "${{ github.repository }} (audio)" \
-            --discord-webhook "${{ secrets.DISCORD_WEBHOOK_URL }}"
+            --discord-webhook "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            $FORCE_FLAG
+
+      - name: Verify no LFS pointer files remain
+        if: ${{ inputs.force_update_all == true }}
+        run: |
+          # A file whose first line is the LFS spec version is a pointer stub, not the real asset
+          # — exactly the leftovers this force refresh is meant to replace. Fail loudly rather
+          # than opening a PR full of stubs.
+          POINTERS=$(grep -rl '^version https://git-lfs\.github\.com/spec/v1' \
+            Assets/_Game/02_Art/Sprite \
+            Assets/_Game/03_Audio 2>/dev/null || true)
+
+          if [ -n "$POINTERS" ]; then
+            echo "::error::LFS pointer files still present after force update:"
+            echo "$POINTERS"
+            exit 1
+          fi
+
+          echo "No LFS pointer files found, assets are real content."
 
       - name: Commit retrieved files to chore/asset
         id: commit
@@ -116,7 +164,12 @@ jobs:
             exit 0
           fi
 
-          git commit -m "chore(assets): retrieve new drive files [skip ci]"
+          if [ "${{ inputs.force_update_all }}" = "true" ]; then
+            git commit -m "chore(assets): force update all drive files [skip ci]"
+          else
+            git commit -m "chore(assets): retrieve new drive files [skip ci]"
+          fi
+
           git push origin HEAD:chore/asset
 
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
@@ -128,10 +181,17 @@ jobs:
         run: |
           cd /tmp/chore-asset
 
-          TITLE="chore(assets): retrieve new drive files"
-          BODY="Automated asset sync from Google Drive.
+          if [ "${{ inputs.force_update_all }}" = "true" ]; then
+            TITLE="chore(assets): force update all drive files"
+            BODY="Automated FULL asset re-download from Google Drive (force mode). Every file still in Drive was re-fetched and overwrote the local copy — used to replace leftover Git LFS pointer stubs after moving off LFS.
 
           Last updated: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          else
+            TITLE="chore(assets): retrieve new drive files"
+            BODY="Automated asset sync from Google Drive.
+
+          Last updated: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          fi
 
           OPEN_PR=$(gh pr list \
             --head chore/asset \
