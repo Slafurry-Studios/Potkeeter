@@ -64,8 +64,8 @@ public class ParryMeter : MonoBehaviour
     }
 
     /// <summary>
-    /// Dipanggil BayonetController saat TryParry() berhasil. Parry yang gagal
-    /// atau tidak mengenai musuh tidak menambah charge.
+    /// Dipanggil BayonetController hanya kalau ada yang benar-benar dicounter.
+    /// Parry yang meleset tidak menambah charge.
     /// </summary>
     public void RegisterParry() => SetCharge(charge + chargePerParry);
 

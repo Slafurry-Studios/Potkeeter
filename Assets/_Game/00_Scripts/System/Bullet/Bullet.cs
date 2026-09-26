@@ -17,11 +17,13 @@ using UnityEngine;
 /// peluru sangat cepat bisa melewati target tipis. Turunkan speed, jangan
 /// ganti balik ke Rigidbody2D.
 ///
-/// Karena tidak ada collider, peluru tidak bisa di-detect lewat
-/// Physics2D.Overlap* dari script lain.
+/// Karena tidak punya collider, peluru tidak bisa ditemukan oleh query
+/// Physics2D milik orang lain (Physics2D.Overlap*). Itu juga alasan parry
+/// tidak searching peluru lewat collider, tapi lewat BulletManager.ActiveBullets
+/// dan cara sendiri: IsInsideParryArea.
 /// </summary>
 [RequireComponent(typeof(SpriteRenderer))]
-public class Bullet : MonoBehaviour, IPoolable, IDamageable
+public class Bullet : MonoBehaviour, IPoolable, IDamageable, IParryable
 {
     public HealthSystem Health { get; private set; }
 
@@ -58,6 +60,11 @@ public class Bullet : MonoBehaviour, IPoolable, IDamageable
     /// <summary>Atur posisi dan arah, lalu mulai terbang. Dipanggil BulletManager setelah Get() dari pool.</summary>
     public void Launch(Vector2 origin, Vector2 direction)
     {
+        if (boxSize.x < 0f || boxSize.y < 0f)
+        {
+            Debug.LogWarning($"[{nameof(Bullet)}] '{name}' punya boxSize negatif ({boxSize.x}, {boxSize.y}). Nilainya dibalik otomatis, tapi perbaiki di inspector.", this);
+        }
+
         // HealthSystem dibuat ulang tiap spawn karena tidak punya Reset(), dan
         // Heal() tidak jalan kalau object sudah IsDead - jadi peluru yang sudah
         // hancur tidak bisa di-heal balik ke hidup.
@@ -125,6 +132,37 @@ public class Bullet : MonoBehaviour, IPoolable, IDamageable
     {
         if (Health == null) return;
         Health.TakeDamage(amount);
+    }
+
+    /// <summary>
+    /// Dipanggil saat peluru berada di area parry. Peluru dimatikan, jadi
+    /// damage-nya tidak pernah sampai ke player dan peluru langsung balik
+    /// ke pool.
+    /// </summary>
+    public void OnParried() => Despawn();
+
+    /// <summary>
+    /// Apakah peluru ini berada di dalam area parry. Dipanggil parry, bukan
+    /// sebaliknya, karena peluru tidak punya collider jadi tidak bisa dicari
+    /// lewat Physics2D.Overlap*.
+    ///
+    /// Yang diuji adalah kotak yang sama persis dengan yang dipakai
+    /// BoxCast di FixedUpdate, jadi parry dan damage menilai peluru dengan
+    /// geometri yang identik.
+    /// </summary>
+    public bool IsInsideParryArea(Vector2 center, float radius)
+    {
+        Vector2 half = EffectiveBoxSize * 0.5f;
+        Vector2 offset = center - (Vector2)transform.position;
+
+        // Putar offset ke ruang lokal peluru, jadi kotaknya bisa diasumsikan
+        // tidak miring dan tidak perlu diputar balik.
+        Vector2 local = Quaternion.Euler(0f, 0f, -transform.eulerAngles.z) * offset;
+        Vector2 closest = new Vector2(
+            Mathf.Clamp(local.x, -half.x, half.x),
+            Mathf.Clamp(local.y, -half.y, half.y));
+
+        return (local - closest).sqrMagnitude <= radius * radius;
     }
 
     private void Despawn()

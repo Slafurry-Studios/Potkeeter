@@ -917,12 +917,6 @@ MonoBehaviour:
     pitch: 1
     loop: 0
     source: {fileID: 0}
-  - name: Shoot
-    clip: {fileID: 8300000, guid: ecefb0659a75718449a98ae606e62e8a, type: 3}
-    volume: 1
-    pitch: 1
-    loop: 0
-    source: {fileID: 0}
   musicTracks:
   - name: MainTheme
     intro: {fileID: 0}

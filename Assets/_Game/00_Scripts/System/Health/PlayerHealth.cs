@@ -29,6 +29,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     private void Start()
     {
         Health.OnHealthChanged += UpdateHealthBarUI;
+        Health.OnDamageReceived += HandleDamageReceived;
         Health.OnDeath += HandlePlayerDeath;
 
         UpdateHealthBarUI(Health.CurrentHealth, Health.MaxHealth);
@@ -39,9 +40,17 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         if (Health != null)
         {
             Health.OnHealthChanged -= UpdateHealthBarUI;
+            Health.OnDamageReceived -= HandleDamageReceived;
             Health.OnDeath -= HandlePlayerDeath;
         }
     }
+
+    /// <summary>
+    /// Dipakai event OnDamageReceived, bukan TakeDamage(), supaya SFX tidak
+    /// berbunyi saat damage ditolak. HealthSystem sudah menahan panggilan
+    /// kalau player sudah mati atau damage-nya nol.
+    /// </summary>
+    private void HandleDamageReceived(float amount) => AudioSystem.Instance?.PlaySFX("TakeDamage", waitForCompletion: false);
 
     private void UpdateHealthBarUI(float current, float max)
     {
