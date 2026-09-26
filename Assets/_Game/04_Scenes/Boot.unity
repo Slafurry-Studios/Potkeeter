@@ -894,7 +894,31 @@ MonoBehaviour:
     source: {fileID: 0}
   sfxSounds:
   - name: ParrySFX
-    clip: {fileID: 8300000, guid: 2fe3f96a4b63aac4fae85a58beeb8923, type: 3}
+    clip: {fileID: 8300000, guid: 91b16d5b28bc9df41b4eb6ac6f1fed55, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: TakeDamage
+    clip: {fileID: 8300000, guid: 97e88effba22b4140af8e276e8b357c5, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: Reloading
+    clip: {fileID: 8300000, guid: 4883f9f54ede0d54b8d8cd921ce42cea, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: Shoot
+    clip: {fileID: 8300000, guid: ecefb0659a75718449a98ae606e62e8a, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: Shoot
+    clip: {fileID: 8300000, guid: ecefb0659a75718449a98ae606e62e8a, type: 3}
     volume: 1
     pitch: 1
     loop: 0
