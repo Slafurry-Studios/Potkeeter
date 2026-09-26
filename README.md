@@ -87,9 +87,9 @@ Open the project in Unity Hub, let it import, then open the `Boot` scene to star
 ## TEAM
 | Role | Name |
 |---|---|
-| Project Manager, Game Designer, Level Designer | Lord Zaini (`haruto7013`) |
-| Audio Engineer | Ifanitas (`ifant2_56937`) |
-| Unity Programmer | Faiz2979. (`flamexq`) |
+| Project Manager, Game Designer, Level Designer | Lord Zaini |
+| Audio Engineer | Ifanitas |
+| Unity Programmer | Faiz2979. |
 
 ---
 
