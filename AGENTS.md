@@ -21,7 +21,10 @@ dotnet build Assembly-CSharp-Editor.csproj # Assets/Editor
 - The `.csproj` files are Unity-generated and gitignored. They only exist after Unity has
   imported the project, and a newly added `.cs` won't be in them until Unity re-imports — so a
   clean `dotnet build` does not prove a new file compiles.
-- Both projects currently build with **0 warnings, 0 errors**. Any warning you see is yours.
+- **An incremental build reports `0 Warning(s)` even when warnings exist** — nothing recompiles,
+  so nothing is re-diagnosed. Use `dotnet build Assembly-CSharp.csproj -t:Rebuild` to see them.
+  Baseline is exactly three: `CS0649 GameFeel.gameFeelEffects`, `CS0414 GameOver.debug`,
+  `CS0414 DialogHUD.typeSFX`. Anything else is yours.
 
 Player build (same args CI uses, via `unity-itchio-deploy.yml`). No Unity editor is on PATH
 (`which unity` hits an unrelated `unity` binary) — invoke the editor Unity Hub installed
