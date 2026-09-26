@@ -126,10 +126,17 @@ Folder names contain spaces (`Collide Trigger`, `State Machine`, `Bridges List`)
   prefabs both store bare GUIDs). Grep for the `.meta` GUID before you move anything, and prefer
   Unity's `Move`/`Delete` so references are rewritten.
 - *Missing (Mono Script)* means the referenced `.cs` isn't in the repo — find it by grepping the
-  GUID from the YAML. The only unresolved references left are two URP camera-data components in
-  `Boot.unity`, left over from a URP package no longer in `manifest.json`; they serialize nothing
-  and are harmless. Repair in the editor by re-assigning the component — never by hand-editing
-  GUIDs.
+  GUID from the YAML. Repair in the editor by re-assigning the component — never by hand-editing
+  GUIDs. The only unresolved script refs left are two URP camera-data components in `Boot.unity`
+  and `Dev/Boot For Playground.unity`, from a URP package no longer in `manifest.json`; they
+  serialize nothing and are harmless.
+- **Missing sprites/fonts are pre-existing, not your bug.** The Drive sync can replace art with new
+  GUIDs while prefabs keep pointing at the old ones, so the UI prefabs ship with dangling
+  `m_Sprite` slots (menu/pause `Background`, all buttons, `Title Text`, the Settings slider
+  `Fill`/`Handle`/`Checkmark`, Dialog `Dialog Box`) and one dead TMP font in `Settings.prefab`. A
+  `None` sprite there is baseline. Re-assign visually in the editor — the art is in the repo
+  (`02_Art/Sprite/Menu/9Slice.png`, `Splashart-Button.png`, `Splashart-Bg.png`,
+  `HUD/Pause.png`); the valid TMP font is `_Vendor/TextMesh Pro/.../LiberationSans SDF.asset`.
 - Wiring is inspector-authored, not code-authored: new UI screens are their own scenes under
   `04_Scenes/` and must be added to `ProjectSettings/EditorBuildSettings.asset` to ship.
 - `README.md`'s ARCHITECTURE section is wrong (paths are under `Assets/_Game/`, and the
