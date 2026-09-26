@@ -1,4 +1,4 @@
-%YAML 1.1
+﻿%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!1 &763767049122702593
 GameObject:
@@ -312,6 +312,7 @@ GameObject:
   - component: {fileID: 2693207570753379126}
   - component: {fileID: 9021035984464399628}
   - component: {fileID: 7914301325990205814}
+  - component: {fileID: 1321373725780208608}
   m_Layer: 0
   m_Name: HealthHUD
   m_TagString: Untagged
@@ -402,6 +403,28 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &1321373725780208608
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4342731246367714581}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2aff55457e8c5414aa006ac45ca611ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  quasos:
+  - {fileID: 3200701824539402610}
+  - {fileID: 4057149566576164197}
+  - {fileID: 895189174961514024}
+  - {fileID: 4213741798526338975}
+  - {fileID: 2743465106475460160}
+  goodQuaso: {fileID: -1070345276, guid: bba16c0475a3c6da79641e9632b545ca, type: 3}
+  brokenQuaso: {fileID: 2140677009, guid: bba16c0475a3c6da79641e9632b545ca, type: 3}
+  shakeAmplitude: 2.5
+  shakeFrequency: 14
 --- !u!1 &4651986301842311514
 GameObject:
   m_ObjectHideFlags: 0
@@ -441,8 +464,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 178.9, y: -61.6}
-  m_SizeDelta: {x: 305.4531, y: 83.9449}
+  m_AnchoredPosition: {x: 135.96823, y: -45.447174}
+  m_SizeDelta: {x: 219.5895, y: 51.6391}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &479504548041014849
 CanvasRenderer:
