@@ -285,6 +285,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 72936199764639315, guid: 2ed8082e039c757339b5daedffe73069, type: 3}
+      propertyPath: _gameSceneName
+      value: Game
+      objectReference: {fileID: 0}
     - target: {fileID: 1010459864864842565, guid: 2ed8082e039c757339b5daedffe73069, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
