@@ -1,0 +1,133 @@
+# AGENTS.md
+
+Unity 2D action game (Slafurry Studios). The **repo root is the Unity project root** — open the
+folder itself, never a nested project. Editor version is pinned in
+`ProjectSettings/ProjectVersion.txt` (`2022.3.62f3`); the deploy workflow reads that file, so
+don't bump it casually.
+
+## Commands
+
+There is no test suite, linter, or formatter. Verification = open the project and press Play on
+the `Boot` scene.
+
+```bash
+# fast compile check, no Unity needed
+dotnet build Assembly-CSharp.csproj        # gameplay code
+dotnet build Assembly-CSharp-Editor.csproj # Assets/Editor
+```
+
+- `dotnet build Potkeeter.slnx` **fails** with the installed SDK (8.0.407) — `.slnx` needs a
+  newer MSBuild. Build the two `.csproj` directly.
+- The `.csproj` files are Unity-generated and gitignored. They only exist after Unity has
+  imported the project, and a newly added `.cs` won't be in them until Unity re-imports — so a
+  clean `dotnet build` does not prove a new file compiles.
+- Both projects currently build with **0 warnings, 0 errors**. Any warning you see is yours.
+
+Player build (same args CI uses, via `unity-itchio-deploy.yml`). No Unity editor is on PATH
+(`which unity` hits an unrelated `unity` binary) — invoke the editor Unity Hub installed
+(`~/Unity/Hub/Editor/2022.3.62f3/Editor/…` here):
+
+```bash
+<unity-editor-binary> -batchmode -quit -nographics \
+  -projectPath . -buildTarget StandaloneWindows64 \
+  -executeMethod BuildScript.Build -logFile -
+```
+
+`Assets/Editor/BuildScript.cs` **requires** the `-buildTarget` argument, builds **every enabled
+scene in `ProjectSettings/EditorBuildSettings.asset`, in list order**, and writes to
+`build/<Target>/`. Missing arg → `Exit(1)`. Supported targets: `StandaloneWindows64`,
+`StandaloneOSX`, `StandaloneLinux64`, `WebGL`. A half-authored scene left enabled in Build
+Settings fails the whole build — check that file before blaming a code change.
+
+## Runtime architecture
+
+**Boot flow.** `Boot.unity` is scene 0 in Build Settings. The persistent systems are plain
+GameObjects *in that scene* (`Loading`, `Audio`, `Pause`, `Localization`, `SceneLoader`,
+`InputHub`) plus `BootstrapLoader` on the `===BOOT===` object. `LoadingSystem.Start()` runs the
+real init sequence. `BootstrapLoader` is a second, parallel path — don't register a new system in
+both. There is no prefab holding these; a new cross-scene system is a new GameObject in
+`Boot.unity`.
+
+**Base classes** (`Assets/_Game/00_Scripts/Core/Abstract/`):
+
+| Base | Behaviour |
+|---|---|
+| `Singleton<T>` | `Awake` is **sealed**; it self-registers with `LoadingSystem.Instance` and calls the abstract `OnSingletonAwake()`. Override the hooks, never `Awake`/`PostInitialize` plumbing away. |
+| `GameSystem<T>` | `Singleton` + `DontDestroyOnLoad`. This is what a cross-scene service extends. |
+| `LocalSingleton<T>` | Per-scene singleton (does *not* persist). |
+| `Manager` | Session coordinator that registers with `GameManager`. **Aspirational** — `GameManager` doesn't exist and the only "Manager" (`ObjectiveManager`) extends `Singleton<ObjectiveManager>` instead. |
+
+**`IInitializable` contract** — the rule the whole codebase depends on:
+- `Initialize()` = own setup only, **never touch other objects**.
+- `PostInitialize()` = wiring, safe to grab references to other objects.
+- `Priority` orders both passes, **smallest runs first**.
+- `LoadingSystem` snapshots registrants on its first frame; anything registering later (e.g. a
+  player spawned in a later scene) is run as a "late batch" one frame later, so ordering still
+  holds within a batch.
+- `Initialize()` gets a 10s per-object timeout and its exceptions are swallowed with a log error
+  — a silent "works in editor, does nothing" bug usually means an exception in `Initialize()`.
+
+**Scene changes** always go through `SceneSystem.Load(name)` (static wrapper over
+`SceneLoader.LoadScene`). Subscribe to `OnBeforeSceneLoad` for the async save/flush gate. Names
+are plain strings passed to `LoadSceneAsync` — a wrong name fails silently at runtime. The menu
+scripts' `_gameSceneName` / `_settingsSceneName` / `_aboutSceneName` defaults in C# do **not**
+match the real scene filenames (`Game`, `Main Menu`, `Settings Menu`, `About Menu`), so trust
+the inspector values, never the field default.
+
+**Bridges** (`Core/Bridge/`): `SingletonEventsBridge` on a GameObject discovers `ISubBridge`
+components (`AudioBridge`) so gameplay can trigger system behaviour without a direct reference.
+
+**Input**: new Input System only (`activeInputHandler: 2`). Actions live in
+`Assets/_Game/05_Settings/Input/Main Input.inputactions`; the generated wrapper
+`Main Input.cs` is committed. Read input through the `Controls` static facade in
+`InputHub.cs` — that file lives in `01_Objects/Prefabs/Input/`, not under `00_Scripts`. Never
+legacy `UnityEngine.Input`.
+
+**Audio and localization are inspector-wired, not `Resources`-loaded:**
+- `AudioSystem` resolves clips from its serialized `musicSounds` / `sfxSounds` arrays. Dropping a
+  file into `Assets/_Game/03_Audio` does nothing until the entry is added to that array.
+- `LocalizationSystem` needs a `LocalizationTable` ScriptableObject assigned; read via
+  `Localize.Text(key)`, language persisted in `PlayerPrefs`.
+
+**Namespaces** mostly mirror folders (`Slafurry.Core.*`, `Slafurry.System.*`,
+`Slafurry.Utils.*`), but all of `Game/`, `Manager/`, `System/Audio`, `System/Health` and most of
+`UI/` are in the **global** namespace. Match whatever the file already does; don't mass-migrate.
+Folder names contain spaces (`Collide Trigger`, `State Machine`, `Bridges List`) — quote paths.
+
+## Assets are Drive-owned
+
+- `Assets/_Game/02_Art/Sprite` and `Assets/_Game/03_Audio` are synced from Google Drive by
+  `retrieve.yml` (manual) and `track.yml` (nightly 23:00 UTC). Don't hand-add, rename, or move
+  files there — the retriever keys on Drive file id + relative path and will re-create whatever
+  it owns. PRs arrive from the disposable `chore/asset` branch (bot "Utazumi Sakurako").
+- `state/*.json` manifests are bot-owned. Never edit by hand.
+- The sync downloads **media only, no `.meta`**. After a sync lands, open the project in Unity
+  and commit the `.meta` files it generates — otherwise GUIDs churn and prefab/scene references
+  silently break.
+
+## Unity asset rules (easy to get wrong here)
+
+- **A `.meta` is part of the change.** Commit the `.meta` Unity generates for every new/renamed
+  file. Never hand-edit a `guid:` in `.unity`/`.prefab`/`.asset` YAML — a typo silently orphans
+  every reference, and a hand-copied GUID collides.
+- **Moving or deleting a `.cs` or prefab breaks every YAML reference to it** (scenes *and*
+  prefabs both store bare GUIDs). Grep for the `.meta` GUID before you move anything, and prefer
+  Unity's `Move`/`Delete` so references are rewritten.
+- Some YAML still carries pre-rewrite script GUIDs from a refactor → *Missing (Mono Script)* in
+  the inspector. The repair is re-assigning the component on the GameObject in the editor.
+- Wiring is inspector-authored, not code-authored: new UI screens are their own scenes under
+  `04_Scenes/` and must be added to `ProjectSettings/EditorBuildSettings.asset` to ship.
+- `README.md`'s ARCHITECTURE section is wrong (paths are under `Assets/_Game/`, and the
+  `ARCHITECTURE.md` it links to does not exist). Trust this file over the README.
+
+## Git
+
+- Tracked despite looking generated: `Packages/manifest.json`, `Packages/packages-lock.json`,
+  `Potkeeter.slnx`, all of `ProjectSettings/`.
+- Ignored: `Library/`, `Temp/`, `Logs/`, `UserSettings/`, `*.csproj`, `build/`.
+- Commit style: `feat(scope):`, `fix:`, `chore(assets):`, `ci(retrieve):`, `sync:`; bot asset
+  commits end with `[skip ci]`.
+- Feature work goes on `feature/*` / `fix/*` / `ci/*` branches, PR into `main`. Releases are
+  manual `workflow_dispatch` on the itch.io deploy workflow (choose platform, optional
+  `release_tag` to also cut a GitHub Release). Nothing builds on push to `main`.
+
