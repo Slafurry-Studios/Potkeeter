@@ -18,7 +18,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &9004732434120566619
 RectTransform:
   m_ObjectHideFlags: 0
@@ -35,9 +35,9 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -104.8, y: 83.5}
+  m_AnchoredPosition: {x: -30.5, y: 35.5}
   m_SizeDelta: {x: 45.4524, y: 40.3209}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 1.0000006, y: 0.00000010430813}
 --- !u!222 &3823290979149102593
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -118,6 +118,7 @@ GameObject:
   - component: {fileID: 3319110950603228973}
   - component: {fileID: 6486015205850893210}
   - component: {fileID: 8000000147077763643}
+  - component: {fileID: 4191156124186166693}
   m_Layer: 5
   m_Name: CheckpointIndicatorHUD
   m_TagString: Untagged
@@ -208,3 +209,18 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &4191156124186166693
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4329794150891701436}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5de79706353de28889083a86e8b7488b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  indicatorAnimator: {fileID: 909854570159401147}
+  indicatorRoot: {fileID: 3198381117234178213}
+  visibleSeconds: 1.5
