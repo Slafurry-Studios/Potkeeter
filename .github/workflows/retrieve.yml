@@ -99,23 +99,70 @@ jobs:
             --discord-webhook "${{ secrets.DISCORD_WEBHOOK_URL }}" \
             $FORCE_FLAG
 
-      - name: Verify no LFS pointer files remain
+      - name: Check for leftover LFS pointer files
         if: ${{ inputs.force_update_all == true }}
+        env:
+          SPRITE_DIR: Assets/_Game/02_Art/Sprite
+          AUDIO_DIR: Assets/_Game/03_Audio
         run: |
           # A file whose first line is the LFS spec version is a pointer stub, not the real asset
-          # — exactly the leftovers this force refresh is meant to replace. Fail loudly rather
-          # than opening a PR full of stubs.
-          POINTERS=$(grep -rl '^version https://git-lfs\.github\.com/spec/v1' \
-            Assets/_Game/02_Art/Sprite \
-            Assets/_Game/03_Audio 2>/dev/null || true)
+          # -- the leftover this force refresh is meant to replace.
+          #
+          # Two very different situations, so they must not be treated the same:
+          #   - The file IS in the Drive manifest -> the retriever owns it and just failed to
+          #     overwrite it. Real failure, so fail the run.
+          #   - The file is NOT in the manifest -> it was never in the Drive folder (e.g. a
+          #     hand-committed placeholder), so no amount of re-downloading can ever fix it.
+          #     Failing here would keep this button permanently red over a file the workflow
+          #     cannot repair, so report it as a warning needing a one-off manual commit.
+          mapfile -t POINTER_FILES < <(
+            grep -rl '^version https://git-lfs\.github\.com/spec/v1' \
+              "$SPRITE_DIR" "$AUDIO_DIR" 2>/dev/null || true
+          )
 
-          if [ -n "$POINTERS" ]; then
-            echo "::error::LFS pointer files still present after force update:"
-            echo "$POINTERS"
+          IN_SCOPE=()
+          OUT_OF_SCOPE=()
+
+          for f in "${POINTER_FILES[@]}"; do
+            case "$f" in
+              "$SPRITE_DIR"/*) rel="${f#"$SPRITE_DIR"/}" ;;
+              "$AUDIO_DIR"/*)  rel="${f#"$AUDIO_DIR"/}" ;;
+              *) continue ;;
+            esac
+
+            # -s is required: with two input files plain jq exits on the LAST output, so a hit
+            # in the sprite manifest would be cancelled out by a miss in the audio manifest.
+            if jq -s -e --arg p "$rel" 'any(.[][]; .downloaded_as == $p)' \
+              state/sprite_manifest.json state/audio_manifest.json >/dev/null 2>&1; then
+              IN_SCOPE+=("$f")
+            else
+              OUT_OF_SCOPE+=("$f")
+            fi
+          done
+
+          if [ ${#IN_SCOPE[@]} -gt 0 ]; then
+            echo "::error::Drive files are still LFS pointers after a forced re-download:"
+            printf '::error:: - %s\n' "${IN_SCOPE[@]}"
             exit 1
           fi
 
-          echo "No LFS pointer files found, assets are real content."
+          if [ ${#OUT_OF_SCOPE[@]} -gt 0 ]; then
+            echo "::warning::LFS pointers that are NOT in the Drive folder, so this workflow"
+            echo "::warning::cannot fix them. Commit the real content once, by hand:"
+            printf '::warning:: - %s\n' "${OUT_OF_SCOPE[@]}"
+
+            {
+              echo "### LFS pointers left outside Drive"
+              echo ""
+              echo "Not owned by the Drive retriever, needs a one-off manual commit:"
+              echo ""
+              for f in "${OUT_OF_SCOPE[@]}"; do
+                echo "- \`$f\`"
+              done
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No LFS pointer files found, assets are real content."
+          fi
 
       - name: Commit retrieved files to chore/asset
         id: commit
@@ -239,7 +286,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
-          GEMINI_PERSONA: ${{ vars.GEMINI_PERSONA || 'You are a helpful assistant.' }}
+          GEMINI_PERSONA: ${{ secrets.GEMINI_PERSONA }}
           GEMINI_LANGUAGE: ${{ vars.GEMINI_LANGUAGE || '' }}
 
         shell: bash

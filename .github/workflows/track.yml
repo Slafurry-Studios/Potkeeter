@@ -116,7 +116,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
-          GEMINI_PERSONA: ${{ vars.GEMINI_PERSONA || 'You are a helpful assistant.' }}
+          GEMINI_PERSONA: ${{ secrets.GEMINI_PERSONA }}
           GEMINI_LANGUAGE: ${{ vars.GEMINI_LANGUAGE || '' }}
 
         shell: bash
