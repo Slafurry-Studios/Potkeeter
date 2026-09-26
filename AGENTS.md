@@ -125,8 +125,11 @@ Folder names contain spaces (`Collide Trigger`, `State Machine`, `Bridges List`)
 - **Moving or deleting a `.cs` or prefab breaks every YAML reference to it** (scenes *and*
   prefabs both store bare GUIDs). Grep for the `.meta` GUID before you move anything, and prefer
   Unity's `Move`/`Delete` so references are rewritten.
-- Some YAML still carries pre-rewrite script GUIDs from a refactor → *Missing (Mono Script)* in
-  the inspector. The repair is re-assigning the component on the GameObject in the editor.
+- *Missing (Mono Script)* means the referenced `.cs` isn't in the repo — find it by grepping the
+  GUID from the YAML. The only unresolved references left are two URP camera-data components in
+  `Boot.unity`, left over from a URP package no longer in `manifest.json`; they serialize nothing
+  and are harmless. Repair in the editor by re-assigning the component — never by hand-editing
+  GUIDs.
 - Wiring is inspector-authored, not code-authored: new UI screens are their own scenes under
   `04_Scenes/` and must be added to `ProjectSettings/EditorBuildSettings.asset` to ship.
 - `README.md`'s ARCHITECTURE section is wrong (paths are under `Assets/_Game/`, and the
