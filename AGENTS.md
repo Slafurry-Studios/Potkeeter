@@ -115,7 +115,7 @@ Folder names contain spaces (`Collide Trigger`, `State Machine`, `Bridges List`)
 - `state/*.json` manifests are bot-owned. Never edit by hand.
 - The sync downloads **media only, no `.meta`**. After a sync lands, open the project in Unity
   and commit the `.meta` files it generates — otherwise GUIDs churn and prefab/scene references
-  silently break.
+  silently break. Nothing validates import settings, so a bad one committed once stays bad.
 
 ## Unity asset rules (easy to get wrong here)
 
@@ -137,6 +137,17 @@ Folder names contain spaces (`Collide Trigger`, `State Machine`, `Bridges List`)
   `None` sprite there is baseline. Re-assign visually in the editor — the art is in the repo
   (`02_Art/Sprite/Menu/9Slice.png`, `Splashart-Button.png`, `Splashart-Bg.png`,
   `HUD/Pause.png`); the valid TMP font is `_Vendor/TextMesh Pro/.../LiberationSans SDF.asset`.
+- **Sprite import settings live in `.meta`, so they are diffable but must be made in the editor.**
+  `textureType: 8` = Sprite, `spriteMode: 1` = Single, `2` = Multiple; a Multiple sheet with an
+  empty `spriteSheet.sprites` list yields **no usable sprite at all** — it must be sliced before
+  it can be dragged into anything. Sheets are sliced by rectangle, so a `-Sheet` filename is not
+  evidence it is a sheet: verify `spriteSheet.sprites` and count the `- name:` entries.
+  `spritePixelsToUnits` differs per asset (100 for menu art, 256 for the placeholder bayonet), so
+  a wrong PPU silently rescales a sprite rather than breaking the reference.
+- **A Drive sync will not restore `.meta`.** The retriever pulls media only, so import settings
+  (Sprite type, slicing, PPU, filter mode) are safe to commit and will survive the next sync — but
+  so will a bad setting, since nothing re-validates them. If a reimport looks wrong, diff the
+  `.meta` before assuming the art changed.
 - Wiring is inspector-authored, not code-authored: new UI screens are their own scenes under
   `04_Scenes/` and must be added to `ProjectSettings/EditorBuildSettings.asset` to ship.
 - `README.md`'s ARCHITECTURE section is wrong (paths are under `Assets/_Game/`, and the
