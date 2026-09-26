@@ -351,6 +351,7 @@ MonoBehaviour:
   vfxPrefab: {fileID: 7685282483028887891, guid: c5437266d1f5013f288c6ff4616ba93d, type: 3}
   spawnPoint: {fileID: 2217398067965162586}
   lifetime: 0.25
+  rotationOffset: 90
 --- !u!1 &4133505014490712485
 GameObject:
   m_ObjectHideFlags: 0
@@ -1025,6 +1026,7 @@ MonoBehaviour:
   spriteAngleOffset: -80
   shootDir: {fileID: 2217398067965162586}
   shootRange: 6
+  bulletPrefab: {fileID: 5934149631731129642, guid: 4b6fa28ba7920613787d94f41128bf52, type: 3}
   shootForce: 30
   recoilForce: 50
   shootCooldown: 0.5
@@ -1037,7 +1039,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 256
   hinge: {fileID: 234548831499439611}
-  parryVFX: {fileID: 0}
+  parryVFX: {fileID: 1766148047238496157}
 --- !u!1 &8103292473067771022
 GameObject:
   m_ObjectHideFlags: 0

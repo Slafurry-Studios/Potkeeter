@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class EnemyHealth : MonoBehaviour
+public class EnemyHealth : MonoBehaviour, IDamageable
 {
     public HealthSystem Health { get; private set; }
 
@@ -51,7 +51,12 @@ public class EnemyHealth : MonoBehaviour
             healthText.text = $"{Mathf.CeilToInt(current)} / {Mathf.CeilToInt(max)}";
         }
 
-        Debug.Log($"[{gameObject.name} UI Updated] Health: {current} / {max}");
+        // Log hanya kalau enemy ini memang punya UI. Tanpa guard ini, setiap
+        // peluru yang kena drone akan menyiram console dengan baris yang sama.
+        if (healthBarSlider != null || healthText != null)
+        {
+            Debug.Log($"[{gameObject.name} UI Updated] Health: {current} / {max}");
+        }
     }
 
     private void PlayHitAnimation(float damage)
@@ -62,7 +67,14 @@ public class EnemyHealth : MonoBehaviour
     private void HandleEnemyDeath()
     {
         Debug.Log($"[{gameObject.name}] Die!");
-        
+
         gameObject.SetActive(false);
+    }
+
+    /// <summary>Pintu masuk generik untuk damage dari mana saja, termasuk Bullet.</summary>
+    public void TakeDamage(float amount)
+    {
+        if (Health == null) return;
+        Health.TakeDamage(amount);
     }
 }

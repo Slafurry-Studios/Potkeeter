@@ -26,7 +26,10 @@ public class BayonetController : MonoBehaviour
     [Header("Shoot & Knockback Settings")]
     [Tooltip("Transform di ujung bayonet untuk trajektori")]
     [SerializeField] private Transform shootDir;
+    [Tooltip("Panjang garis gizmo trajektori. Tidak ada role gameplay sejak tembakan jadi peluru - damage dan jangkauan ikut dari prefab peluru.")]
     [SerializeField] private float shootRange = 5f;
+    [Tooltip("Prefab peluru yang ditembakkan. Stats dan sprite-nya diset di prefab ini. Kosong = tidak ada yang keluar.")]
+    [SerializeField] private Bullet bulletPrefab;
     [SerializeField] private float shootForce = 15f;
     [SerializeField] private float recoilForce = 5f;
     [SerializeField] private float shootCooldown = 0.3f;
@@ -240,22 +243,18 @@ public class BayonetController : MonoBehaviour
             playerRb.AddForce(-trajectoryDir * recoilForce, ForceMode2D.Impulse);
         }
 
-        RaycastHit2D raycastCollider = Physics2D.Raycast(GetActualAnchorWorldPosition(), trajectoryDir, shootRange, enemyLayer);
-        if (!raycastCollider) return;
-
-        EnemyHealth targetHealth = raycastCollider.collider.GetComponentInParent<EnemyHealth>();
-        Rigidbody2D targetRb = raycastCollider.collider.GetComponentInParent<Rigidbody2D>();
-
-        if (targetHealth != null)
-        {
-            targetHealth.Health?.TakeDamage(10f);
-            Debug.Log($"Hit {raycastCollider.collider.name} for 10 damage!");
-        }
-
-        if (targetRb != null)
-        {
-            targetRb.AddForce(trajectoryDir * shootForce, ForceMode2D.Impulse);
-        }
+        // Sebelum ini, tembakan ini hitscan: Physics2D.Raycast dari anchor
+        // sejauh shootRange, 10 damage ke EnemyHealth pertama yang kena. Sekarang
+        // peluru betulan yang terbang, jadi damage, kecepatan, dan knockback-nya
+        // pindah ke prefab peluru - bukan lagi angka yang ditulis di sini.
+        // Lunge dan recoil di atas sengaja dibiarkan, karena itu fisika
+        // bayonetnya, bukan bagian dari damage hit.
+        //
+        // Muzzle di ujung bayonet (shootDir), bukan di anchor. Bullet meng-cast
+        // kotak mulai dari titik spawn-nya ke depan, jadi selama shootDir ada
+        // di ujung bilah, peluru tidak akan kena bilah bayonet sendiri.
+        Vector2 muzzlePosition = shootDir != null ? (Vector2)shootDir.position : GetActualAnchorWorldPosition();
+        BulletManager.Instance?.Spawn(bulletPrefab, muzzlePosition, trajectoryDir);
     }
 
     public void ExecuteParryLogic()

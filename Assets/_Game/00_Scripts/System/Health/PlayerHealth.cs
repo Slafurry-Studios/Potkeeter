@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro; // Gunakan ini jika Anda memakai TextMeshPro untuk teks UI
 
-public class PlayerHealth : MonoBehaviour
+public class PlayerHealth : MonoBehaviour, IDamageable
 {
     public HealthSystem Health { get; private set; }
     public static PlayerHealth Instance { get; private set; }
@@ -62,5 +62,12 @@ public class PlayerHealth : MonoBehaviour
     private void HandlePlayerDeath()
     {
         Debug.Log("Player Die!");
+    }
+
+    /// <summary>Pintu masuk generik untuk damage dari mana saja, termasuk Bullet.</summary>
+    public void TakeDamage(float amount)
+    {
+        if (Health == null) return;
+        Health.TakeDamage(amount);
     }
 }
