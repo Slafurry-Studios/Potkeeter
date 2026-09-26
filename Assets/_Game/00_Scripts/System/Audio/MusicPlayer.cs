@@ -28,7 +28,7 @@ public class MusicPlayer : MonoBehaviour
     {
         if (AudioSystem.Instance == null)
         {
-            Debug.LogError("MusicPlayer: AudioSystem belum siap!");
+            Debug.LogWarning("MusicPlayer: AudioSystem belum siap!");
             return;
         }
 
