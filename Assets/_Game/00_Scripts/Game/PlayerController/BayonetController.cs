@@ -62,6 +62,13 @@ public class BayonetController : MonoBehaviour
     public float ShootTransitionTime => shootTransitionTime;
     public float ParryTransitionTime => parryTransitionTime;
 
+    /// <summary>
+    /// shootCooldown setelah buff ParryMeter diterapkan. ParryMeter tidak
+    /// push apa pun ke sini; multiplier-nya dibaca on demand supaya tidak
+    /// perlu referensi silang dua arah antar komponen.
+    /// </summary>
+    public float EffectiveShootCooldown => shootCooldown * (ParryMeter.Instance != null ? ParryMeter.Instance.ShootCooldownMultiplier : 1f);
+
     private void Awake()
     {
         bayonetRb = GetComponent<Rigidbody2D>();
@@ -126,7 +133,7 @@ public class BayonetController : MonoBehaviour
     {
         if (!Controls.IsInputEnabled) return;
         if (StateMachine.CurrentState != IdleState) return;
-        if (Time.time < lastActionTime + shootCooldown) return;
+        if (Time.time < lastActionTime + EffectiveShootCooldown) return;
 
         StateMachine.ChangeState(ShootingState);
     }
@@ -277,6 +284,8 @@ public class BayonetController : MonoBehaviour
     
                 bayonetRb.AddForce(trajectoryDir * shootForce, ForceMode2D.Impulse);
                 AudioSystem.Instance?.PlaySFX("ParrySFX", waitForCompletion: false);
+
+                ParryMeter.Instance?.RegisterParry();
             }
             else
             {
