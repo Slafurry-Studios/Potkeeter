@@ -93,7 +93,7 @@ public class AudioSystem : GameSystem<AudioSystem>
         {
             if (sound.clip == null)
             {
-                Debug.LogError($"Sound '{sound.name}' tidak memiliki AudioClip!");
+                Debug.LogWarning($"Sound '{sound.name}' tidak memiliki AudioClip! (dilewati)");
                 continue;
             }
 
@@ -110,7 +110,7 @@ public class AudioSystem : GameSystem<AudioSystem>
         {
             if (track.loop == null && track.intro == null)
             {
-                Debug.LogError($"MusicTrack '{track.name}' tidak memiliki AudioClip!");
+                Debug.LogWarning($"MusicTrack '{track.name}' tidak memiliki AudioClip! (dilewati)");
                 continue;
             }
 
@@ -538,17 +538,31 @@ public class AudioSystem : GameSystem<AudioSystem>
 
     private Sound FindSound(Sound[] sounds, string name)
     {
+        // The arrays are only populated on the Boot GameObject, and
+        // InitializeTracks already tolerates them being null. Array.Find
+        // throws on a null array, so a lookup from a bare AudioSystem (or
+        // before Initialize ran) would take the game down.
+        if (sounds == null)
+        {
+            Debug.LogWarning($"Sound '{name}' tidak ditemukan! (daftar sound belum diisi)");
+            return null;
+        }
+
         Sound sound = Array.Find(sounds, item => item != null && item.name == name);
 
+        // Missing registrations are a content gap, not a crash. These are
+        // warnings on purpose: an error here trips Unity's "Pause on Error"
+        // editor setting, which halts Play mode mid-game for what is only a
+        // missing clip.
         if (sound == null)
         {
-            Debug.LogError($"Sound '{name}' tidak ditemukan!");
+            Debug.LogWarning($"Sound '{name}' tidak ditemukan! (tidak diputar)");
             return null;
         }
 
         if (sound.source == null)
         {
-            Debug.LogError($"AudioSource untuk '{name}' belum dibuat!");
+            Debug.LogWarning($"AudioSource untuk '{name}' belum dibuat! (pastikan Initialize sudah jalan)");
             return null;
         }
 
