@@ -306,6 +306,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8709168992305981302}
+  - component: {fileID: 1766148047238496157}
   m_Layer: 0
   m_Name: Players
   m_TagString: Player
@@ -335,6 +336,21 @@ Transform:
   - {fileID: 947389025704697812}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1766148047238496157
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2160065396919123733}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ebf29849b6dddd8c580982fa6f81c0d2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  vfxPrefab: {fileID: 7685282483028887891, guid: c5437266d1f5013f288c6ff4616ba93d, type: 3}
+  spawnPoint: {fileID: 2217398067965162586}
+  lifetime: 0.25
 --- !u!1 &4133505014490712485
 GameObject:
   m_ObjectHideFlags: 0
@@ -1021,6 +1037,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 256
   hinge: {fileID: 234548831499439611}
+  parryVFX: {fileID: 0}
 --- !u!1 &8103292473067771022
 GameObject:
   m_ObjectHideFlags: 0

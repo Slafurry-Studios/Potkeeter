@@ -1,5 +1,6 @@
 using UnityEngine;
 using Slafurry.System.InputHub;
+using Slafurry.Utils.VFX;
 
 [RequireComponent(typeof(Rigidbody2D), typeof(HingeJoint2D))]
 public class BayonetController : MonoBehaviour
@@ -44,6 +45,8 @@ public class BayonetController : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private HingeJoint2D hinge;
+    [Tooltip("Spawner VFX parry. Kalau kosong, dicari otomatis di object ini atau parent's-nya.")]
+    [SerializeField] private ParryVFX parryVFX;
 
     private const float DirectionEpsilonSqr = 0.001f;
     private const float TrajectoryEpsilonSqr = 0.0001f;
@@ -73,6 +76,7 @@ public class BayonetController : MonoBehaviour
     {
         bayonetRb = GetComponent<Rigidbody2D>();
         if (hinge == null) hinge = GetComponent<HingeJoint2D>();
+        if (parryVFX == null) parryVFX = GetComponentInParent<ParryVFX>();
         mainCamera = Camera.main;
 
         hinge.useMotor = false;
@@ -284,6 +288,11 @@ public class BayonetController : MonoBehaviour
     
                 bayonetRb.AddForce(trajectoryDir * shootForce, ForceMode2D.Impulse);
                 AudioSystem.Instance?.PlaySFX("ParrySFX", waitForCompletion: false);
+
+                // Posisi dari ujung bayonet, rotasi dari bayonet itu sendiri.
+                // shootDir adalah child, jadi rotasinya bisa berbeda dari
+                // rotasi bayonet kalau ada offset lokal di tip-nya.
+                parryVFX?.PlayAt(parryPoint, transform.eulerAngles.z);
 
                 ParryMeter.Instance?.RegisterParry();
             }
