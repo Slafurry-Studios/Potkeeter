@@ -21,6 +21,14 @@ dotnet build Assembly-CSharp-Editor.csproj # Assets/Editor
 - The `.csproj` files are Unity-generated and gitignored. They only exist after Unity has
   imported the project, and a newly added `.cs` won't be in them until Unity re-imports — so a
   clean `dotnet build` does not prove a new file compiles.
+- To check a file Unity hasn't imported yet, compile it standalone with Roslyn
+  (`dotnet <sdk>/Roslyn/bincore/csc.dll -nostdlib` + `-r:` Unity's `netstandard.dll` and the
+  `UnityEngine.*Module.dll` files under `Editor/Data/Managed/UnityEngine/`, plus
+  `Library/ScriptAssemblies/UnityEngine.UI.dll` for UGUI types). You have to pull in the
+  abstract bases and the `LoadingSystem`/`BootstrapLoader`/`SceneLoader` sources too, since those
+  types live in `Assembly-CSharp`. Expect **spurious `CS0649` on every `[SerializeField]`** —
+  inspector assignment is invisible to a standalone compile, so only the `-t:Rebuild` baseline
+  above is authoritative.
 - **An incremental build reports `0 Warning(s)` even when warnings exist** — nothing recompiles,
   so nothing is re-diagnosed. Use `dotnet build Assembly-CSharp.csproj -t:Rebuild` to see them.
   Baseline is exactly three: `CS0649 GameFeel.gameFeelEffects`, `CS0414 GameOver.debug`,
@@ -89,17 +97,55 @@ the next regeneration.
 
 **Audio and localization are inspector-wired, not `Resources`-loaded** (there is no `Resources`
 folder for either — `Assets/Resources` only holds DOTween settings):
-- `AudioSystem` (on the `Audio` GameObject in `Boot.unity`) resolves clips from its serialized
-  `musicSounds` / `sfxSounds` arrays. Names are string keys matched against each entry's `name`
-  field; a miss logs `Sound '<name>' tidak ditemukan!` and no-ops. Only `"Virtual Insanity"`
-  (music) and `"ParrySFX"` (sfx) are registered, so `ObjectiveManager`'s `PlaySFX("Objective")`
-  and `PlaySFX("ObjectiveComplete")` currently fail. Dropping a file into `Assets/_Game/03_Audio`
-  changes nothing until an entry is added to the array.
-- `LocalizationSystem` is scaffolded but **not wired**: no `LocalizationTable` asset exists in
-  the repo and the component's `table` field is `{fileID: 0}`, so `GetText` has no null guard and
+- `AudioSystem` (on the `Audio` GameObject in `Boot.unity`) resolves clips from three serialized
+  arrays. Names are string keys matched against each entry's `name`; a miss logs
+  `Sound '<name>' tidak ditemukan!` and no-ops. Dropping a file into `Assets/_Game/03_Audio`
+  changes nothing until an entry is added to an array.
+- `PlayMusic(name)` checks **`musicTracks` first**, then falls back to the legacy `musicSounds`
+  array. New music goes in `musicTracks`; `musicSounds` only still holds `"Virtual Insanity"`.
+- A `MusicTrack` is an **optional `intro` that plays once, then a `loop` clip**. The handoff
+  crossfades, and the loop source forces `loop = true` at `Initialize()` *and* again at play time,
+  so a track cannot play once and go silent — which is exactly how `"Virtual Insanity"` behaved
+  with `loop: 0`. Registered: `MainTheme` (loop only), `Battlefield`, `FinalBoss`,
+  `SpaceshipTheme` (intro + loop each). Clips live in `03_Audio/MUSIC/<Name>/`.
+- Switching tracks crossfades the outgoing one out in **both** directions (track→track, and
+  track↔legacy `Sound`) via `FadeOutOutgoing`/`StopOutgoing`. Re-triggering the track that is
+  already playing is a deliberate no-op, so an intro never restarts mid-way. Music fades use
+  `Time.deltaTime`, so they stall while the game is paused.
+- **Only the Main Menu has music.** `Main Menu.unity` wires `SceneStartTrigger.onTrigger` to
+  `AudioBridge.set_fadeDuration(1)` then `AudioBridge.PlayMusic("MainTheme")`. `Game.unity`,
+  `Playground.unity` and both other menu scenes have **zero** `PlayMusic` calls.
+- `MusicPlayer.cs` is a code-driven alternative and is **not attached anywhere**.
+  `Prefabs/System/Audio/MusicPlayer.prefab` is a naming trap: despite the name its root has only
+  a Transform, and the child `AudioBridge` GameObject holds `SingletonEventsBridge` +
+  `AudioBridge`. There is no `MusicPlayer` component in it.
+- The mixer volume sliders are **dead**: `Master.mixer` has `m_ExposedParameters: []`, so
+  `MasterVolume`/`MusicVolume`/`SFXVolume` don't exist. `Update*Volume` no longer NREs — it
+  null-guards, still writes `PlayerPrefs`, and warns once — but the Settings sliders do nothing
+  until the three parameters are exposed in the mixer inspector.
+- SFX still uses `sfxSounds`, where only `"ParrySFX"` is registered, so `ObjectiveManager`'s
+  `PlaySFX("Objective")` and `PlaySFX("ObjectiveComplete")` fail. An `AudioClip` in scene/prefab
+  YAML is `{fileID: 8300000, guid: <32 hex>, type: 3}`.
+- `LocalizationSystem` is scaffolded but **not wired**: no `LocalizationTable` asset exists in the
+  repo and the component's `table` field is `{fileID: 0}`, so `GetText` has no null guard and
   `Localize.Text(key)` will NRE. The only caller, `LocalizedText`, is also unusable — its class
   name doesn't match `LocalizeText.cs`, so Unity won't let you attach it, and nothing references
   it. Fix the table and the filename before building on localization.
+
+**Triggers** (`00_Scripts/Game/Triggers/`, all in the **global** namespace like the rest of
+`Game/`): `BaseTrigger` supplies the `playLimit` / `unlimited` gate (`CanTrigger`,
+`AddTriggerCount`) and the other four extend it — `CountTrigger` (`targetCount` → `onReached`),
+`DelayTrigger` (`delay` → `onComplete`), `SceneStartTrigger` (`triggerOnStart` → `onTrigger`).
+`ChangeSceneTrigger` is standalone and just calls `SceneSystem.Load`. Behaviour is
+inspector-authored through `UnityEvent`s, so wiring lives in the scene YAML, not in code.
+
+**Menu UI helpers** (`00_Scripts/Utils/UI/`, namespace `Slafurry.Utils.UI`): `UIFloat` (sine
+`anchoredPosition` drift, optional phase), `ButtonHover` (pointer + selection scale/brightness),
+`ButtonClickPunch` (press-squash, release-pop, submit support). Both button scripts animate
+`target.localScale` **and** `Graphic.color` and each caches the rest value in `Awake`, so on one
+transform they overwrite each other — point one `target` at a child GameObject.
+`ButtonClickPunch`'s `overshoot` is documented as scaling the overshoot but actually multiplies
+the settle *duration* (`releaseDuration * overshoot`).
 
 **Namespaces** mostly mirror folders (`Slafurry.Core.*`, `Slafurry.System.*`,
 `Slafurry.Utils.*`), but all of `Game/`, `Manager/`, `System/Audio`, `System/Health` and most of
@@ -127,16 +173,18 @@ Folder names contain spaces (`Collide Trigger`, `State Machine`, `Bridges List`)
   Unity's `Move`/`Delete` so references are rewritten.
 - *Missing (Mono Script)* means the referenced `.cs` isn't in the repo — find it by grepping the
   GUID from the YAML. Repair in the editor by re-assigning the component — never by hand-editing
-  GUIDs. The only unresolved script refs left are two URP camera-data components in `Boot.unity`
-  and `Dev/Boot For Playground.unity`, from a URP package no longer in `manifest.json`; they
-  serialize nothing and are harmless.
-- **Missing sprites/fonts are pre-existing, not your bug.** The Drive sync can replace art with new
-  GUIDs while prefabs keep pointing at the old ones, so the UI prefabs ship with dangling
-  `m_Sprite` slots (menu/pause `Background`, all buttons, `Title Text`, the Settings slider
-  `Fill`/`Handle`/`Checkmark`, Dialog `Dialog Box`) and one dead TMP font in `Settings.prefab`. A
-  `None` sprite there is baseline. Re-assign visually in the editor — the art is in the repo
-  (`02_Art/Sprite/Menu/9Slice.png`, `Splashart-Button.png`, `Splashart-Bg.png`,
-  `HUD/Pause.png`); the valid TMP font is `_Vendor/TextMesh Pro/.../LiberationSans SDF.asset`.
+  GUIDs. In `_Game` the only unresolved script refs are two URP camera-data components in
+  `Boot.unity` and `Dev/Boot For Playground.unity`, from a URP package no longer in
+  `manifest.json`; they serialize nothing and are harmless. The imported TMP *Examples & Extras*
+  adds two more, but only inside its own demo scenes/prefabs.
+- **Dangling sprite/font slots are no longer baseline.** The Drive sync could replace art with new
+  GUIDs while prefabs kept pointing at the old ones, which used to leave `m_Sprite: {fileID: 0}` on
+  the menu/pause `Background`, every button, `Title Text`, the Settings slider
+  `Fill`/`Handle`/`Checkmark`, the Dialog `Dialog Box`, and one dead TMP font in `Settings.prefab`.
+  All of those were re-assigned in the main-menu work: a `m_Sprite: {fileID: 0}` or
+  `m_fontFile: {fileID: 0}` anywhere today is **not** baseline — treat it as a fresh Drive-sync
+  regression. `MainMenu.prefab` now points at `Abaddon Bold` (`02_Art/Sprite/Fonts`), and
+  `Abaddon Light.asset` was deleted (only its `.ttf` survives).
 - **Sprite import settings live in `.meta`, so they are diffable but must be made in the editor.**
   `textureType: 8` = Sprite, `spriteMode: 1` = Single, `2` = Multiple; a Multiple sheet with an
   empty `spriteSheet.sprites` list yields **no usable sprite at all** — it must be sliced before
@@ -148,6 +196,16 @@ Folder names contain spaces (`Collide Trigger`, `State Machine`, `Bridges List`)
   (Sprite type, slicing, PPU, filter mode) are safe to commit and will survive the next sync — but
   so will a bad setting, since nothing re-validates them. If a reimport looks wrong, diff the
   `.meta` before assuming the art changed.
+- **Music loop clips need their own import settings**, for the same reason sprites do. All the
+  `03_Audio/MUSIC/*/*.ogg` ship as `loadType: 0` + `compressionFormat: 1` (Vorbis) with no loop
+  flag. Vorbis looping can click or hiccup at the seam, so each `*_loop.ogg` wants **Decompress On
+  Load** + the **Loop** box ticked in the inspector. The `.ogg` extension is not evidence a file
+  is a loop — check `loadType`/`compressionFormat` and count the `-intro`/`-loop` filename pair.
+- **There are two TextMesh Pro resource trees**: `Assets/_Vendor/TextMesh Pro` (fonts, no `.cs`)
+  and `Assets/TextMesh Pro` (the full *Examples & Extras* import, 11 MB / 250 files / 131 GUIDs).
+  They share **no GUIDs**, so nothing collides, but the 34 `Examples & Extras` scripts really do
+  compile into `Assembly-CSharp` (37 csproj entries) — benchmarks, vertex shake and other unused
+  demo code. It is inert but shipped; the first candidate if the repo needs slimming.
 - Wiring is inspector-authored, not code-authored: new UI screens are their own scenes under
   `04_Scenes/` and must be added to `ProjectSettings/EditorBuildSettings.asset` to ship.
 - `README.md`'s ARCHITECTURE section is wrong (paths are under `Assets/_Game/`, and the
@@ -157,6 +215,10 @@ Folder names contain spaces (`Collide Trigger`, `State Machine`, `Bridges List`)
 
 - Tracked despite looking generated: `Packages/manifest.json`, `Packages/packages-lock.json`,
   `Potkeeter.slnx`, all of `ProjectSettings/`.
+- `Potkeeter.slnx` lists all 44 generated csproj files, **and all but the two
+  `Assembly-CSharp*` ones are gitignored** — so a local "trim the solution so `dotnet build
+  Potkeeter.slnx` works" edit deletes 42 entries and quietly kills IDE completion for TMP, the
+  Input System and Cinemachine. Build the two `.csproj` directly instead of slimming this file.
 - Ignored: `Library/`, `Temp/`, `Logs/`, `UserSettings/`, `*.csproj`, `build/`.
 - Commit style: `feat(scope):`, `fix:`, `chore(assets):`, `ci(retrieve):`, `sync:`; bot asset
   commits end with `[skip ci]`.
