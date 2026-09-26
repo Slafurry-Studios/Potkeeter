@@ -899,6 +899,39 @@ MonoBehaviour:
     pitch: 1
     loop: 0
     source: {fileID: 0}
+  musicTracks:
+  - name: MainTheme
+    intro: {fileID: 0}
+    loop: {fileID: 8300000, guid: a15e202f4c1afa73aac0673c27780f1c, type: 3}
+    volume: 0.7
+    pitch: 1
+    crossfade: 1
+    introSource: {fileID: 0}
+    loopSource: {fileID: 0}
+  - name: Battlefield
+    intro: {fileID: 8300000, guid: c8227ad340491ae40ac1e36ef763d690, type: 3}
+    loop: {fileID: 8300000, guid: 7fde8e9265ef8894ca0a9351b5ca8f0e, type: 3}
+    volume: 0.7
+    pitch: 1
+    crossfade: 1
+    introSource: {fileID: 0}
+    loopSource: {fileID: 0}
+  - name: FinalBoss
+    intro: {fileID: 8300000, guid: 9f035c10a4cbd3e01abcf9ce0408e992, type: 3}
+    loop: {fileID: 8300000, guid: 27f34f10aec08c2e1971e10f2d51f5d2, type: 3}
+    volume: 0.7
+    pitch: 1
+    crossfade: 1
+    introSource: {fileID: 0}
+    loopSource: {fileID: 0}
+  - name: SpaceshipTheme
+    intro: {fileID: 8300000, guid: 26098d0847dd2eb4d8ce8d1c7abf1a87, type: 3}
+    loop: {fileID: 8300000, guid: 15f2ebc3fcc5ae16bba62576539d9501, type: 3}
+    volume: 0.7
+    pitch: 1
+    crossfade: 1
+    introSource: {fileID: 0}
+    loopSource: {fileID: 0}
 --- !u!4 &5435900409957977122
 Transform:
   m_ObjectHideFlags: 0
