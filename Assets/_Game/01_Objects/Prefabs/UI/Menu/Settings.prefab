@@ -845,8 +845,7 @@ MonoBehaviour:
   m_text: Camera Shake
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: b7a070210581336368f8a25c13bd2a07, type: 2}
-  m_sharedMaterial: {fileID: -4309493083186649642, guid: b7a070210581336368f8a25c13bd2a07,
-    type: 2}
+  m_sharedMaterial: {fileID: -4309493083186649642, guid: b7a070210581336368f8a25c13bd2a07, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -994,9 +993,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: SFX Volume
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: b7a070210581336368f8a25c13bd2a07, type: 2}
-  m_sharedMaterial: {fileID: -4309493083186649642, guid: b7a070210581336368f8a25c13bd2a07,
-    type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -1420,9 +1418,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Music Volume
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: b7a070210581336368f8a25c13bd2a07, type: 2}
-  m_sharedMaterial: {fileID: -4309493083186649642, guid: b7a070210581336368f8a25c13bd2a07,
-    type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -1622,7 +1619,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 4407712209445590869}
   m_HandleRect: {fileID: 7111925634185555114}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -2038,7 +2035,6 @@ GameObject:
   - component: {fileID: 5309763413197213390}
   - component: {fileID: 6751994604167703606}
   - component: {fileID: 6999341751551578244}
-  - component: {fileID: 2245863250208746145}
   m_Layer: 5
   m_Name: Back
   m_TagString: Untagged
@@ -2171,30 +2167,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 91f2dd41c98d92f1990b1115c32816b5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  category: UI
   effectName: Click
---- !u!114 &2245863250208746145
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6411958151214671934}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 92637eaefb9d9581bb27b4402a01ac53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  target: {fileID: 263229182696003502}
-  hoverScale: 1.1
-  speed: 10
-  useUnscaledTime: 1
-  onHoverEnter:
-    m_PersistentCalls:
-      m_Calls: []
-  onHoverExit:
-    m_PersistentCalls:
-      m_Calls: []
 --- !u!1 &6775847315599095256
 GameObject:
   m_ObjectHideFlags: 0
@@ -2654,10 +2627,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 7804093757796088976}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 17b8b70d61532604995c0793bcb9bc3a, type: 3}
+  m_Script: {fileID: 11500000, guid: 81fe1a2ce3f4cbe4db87d315b578762d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _mainMenuSceneName: MainMenu
+  _mainMenuSceneName: Main Menu
   _masterVolSlider: {fileID: 389314348827178192}
   _musicVolSlider: {fileID: 1662446647433768587}
   _sfxVolSlider: {fileID: 1997882920126221283}
@@ -2981,8 +2954,7 @@ MonoBehaviour:
   m_text: Master Volume
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: b7a070210581336368f8a25c13bd2a07, type: 2}
-  m_sharedMaterial: {fileID: -4309493083186649642, guid: b7a070210581336368f8a25c13bd2a07,
-    type: 2}
+  m_sharedMaterial: {fileID: -4309493083186649642, guid: b7a070210581336368f8a25c13bd2a07, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []

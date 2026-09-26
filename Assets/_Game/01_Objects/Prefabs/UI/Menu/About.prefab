@@ -190,10 +190,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 289123781665769717}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 27b818c454503a8809313f1e40851e09, type: 3}
+  m_Script: {fileID: 11500000, guid: 501498945a6afa042b4a2c96f78e8d77, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _mainMenuSceneName: MainMenu
+  _mainMenuSceneName: Main Menu
 --- !u!1 &3759066175139654924
 GameObject:
   m_ObjectHideFlags: 0
@@ -448,7 +448,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 441.53708, y: -182.255}
+  m_AnchoredPosition: {x: 441.53708, y: -185.7}
   m_SizeDelta: {x: 883.07416, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4344638135922510134
@@ -486,9 +486,8 @@ MonoBehaviour:
     eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt
     in culpa qui officia deserunt mollit anim id est laborum."'
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 31f71c89d5330c7c2b9141c71551d2c1, type: 2}
-  m_sharedMaterial: {fileID: 6310404698827276078, guid: 31f71c89d5330c7c2b9141c71551d2c1,
-    type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -581,7 +580,6 @@ GameObject:
   - component: {fileID: 8177811049709489639}
   - component: {fileID: 7210042813656825412}
   - component: {fileID: 4933735553395799038}
-  - component: {fileID: 415799201264913684}
   m_Layer: 5
   m_Name: Back
   m_TagString: Untagged
@@ -714,30 +712,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 91f2dd41c98d92f1990b1115c32816b5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  category: UI
   effectName: Click
---- !u!114 &415799201264913684
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4990231610524130927}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 92637eaefb9d9581bb27b4402a01ac53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  target: {fileID: 6466124182835926142}
-  hoverScale: 1.1
-  speed: 10
-  useUnscaledTime: 1
-  onHoverEnter:
-    m_PersistentCalls:
-      m_Calls: []
-  onHoverExit:
-    m_PersistentCalls:
-      m_Calls: []
 --- !u!1 &5503253466972459711
 GameObject:
   m_ObjectHideFlags: 0
