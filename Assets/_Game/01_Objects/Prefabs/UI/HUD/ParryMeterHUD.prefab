@@ -1,4 +1,4 @@
-%YAML 1.1
+﻿%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!1 &789980790979796227
 GameObject:
@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 5006337005133721376}
   - component: {fileID: 1851990325835135985}
   - component: {fileID: 8617289582243257720}
+  - component: {fileID: 7965176711539058373}
   m_Layer: 5
   m_Name: ParryMeterHUD
   m_TagString: Untagged
@@ -102,6 +103,24 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &7965176711539058373
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 789980790979796227}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3aea27d60df63d6fbbff7ce9eaf6edee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  parrySlider: {fileID: 6233803150102627262}
+  fillImage: {fileID: 6830785990051196557}
+  startColor: {r: 0.25, g: 0.85, b: 0.35, a: 1}
+  lowColor: {r: 0.95, g: 0.9, b: 0.2, a: 1}
+  midColor: {r: 1, g: 0.55, b: 0.15, a: 1}
+  endColor: {r: 0.85, g: 0.2, b: 0.2, a: 1}
 --- !u!1 &1589816277246462879
 GameObject:
   m_ObjectHideFlags: 0
