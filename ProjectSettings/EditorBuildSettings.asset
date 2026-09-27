@@ -23,5 +23,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Game/04_Scenes/Game/Level 2.unity
     guid: 5f360ffbc2c1ed67ebd35f0d8bb1be92
+  - enabled: 1
+    path: Assets/_Game/04_Scenes/Game/Level 3.unity
+    guid: c09217aa65c274de6aed1dbc135738e0
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: befec698e108ad6c6af4d3aaeaa0f9b0, type: 3}

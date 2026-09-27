@@ -28,7 +28,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -183.91043, y: 147.54506, z: 5.1957626}
-  m_LocalScale: {x: 3, y: 3, z: 3}
+  m_LocalScale: {x: 9.52, y: 9.52, z: 9.52}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
@@ -97,14 +97,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e2117f399f6429bbfb29a36ef8ed750, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  boxSize: {x: 2.44, y: 0.18}
+  boxSize: {x: 8.41, y: 0.45}
   hitMask:
     serializedVersion: 2
-    m_Bits: 2112
-  speed: 6
+    m_Bits: 64
+  speed: 15
   damage: 1
   maxHealth: 1
-  maxLifetime: 4
+  maxLifetime: 10
   showGizmos: 1
   gizmoPathLength: 3
   hitVFX: {fileID: 0}

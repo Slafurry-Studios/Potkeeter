@@ -19,10 +19,21 @@ public class BayonetParryingState : IState
     public void Update()
     {
         stateTimer += Time.deltaTime;
-        if (stateTimer >= controller.ParryTransitionTime)
+        if (stateTimer >= controller.EffectiveParryTransitionTime)
         {
-            controller.StateMachine.ChangeState(controller.IdleState);
+            controller.OnParryWindowEnded();
         }
+    }
+
+    /// <summary>
+    /// Memulai ulang siklus parry tanpa lewat IdleState. StateMachine.ChangeState
+    /// menolak berpindah ke state yang sedang aktif, jadi parry beruntun tidak
+    /// bisa lewat ChangeState dan harus masuk Exit/Enter langsung.
+    /// </summary>
+    public void Restart()
+    {
+        Exit();
+        Enter();
     }
 
     public void FixedUpdate()

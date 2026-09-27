@@ -1111,10 +1111,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: da3eb5b0ef2561347be6ff213ca59a3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  chargePerParry: 0.25
-  drainPerSecond: 0.1
-  buffThreshold: 0.5
-  buffedShootCooldownMultiplier: 0.5
+  chargePerParry: 0.561
+  drainPerSecond: 0.049
+  buffThreshold: 0.127
+  buffedShootCooldownMultiplier: 0.32
 --- !u!114 &6453752151210086451
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1557,10 +1557,10 @@ MonoBehaviour:
   shootRange: 6
   bulletPrefab: {fileID: 5934149631731129642, guid: 4b6fa28ba7920613787d94f41128bf52, type: 3}
   shootForce: 30
-  recoilForce: 50
+  recoilForce: 60
   shootCooldown: 0.5
   shootTransitionTime: 0.3
-  parryRadius: 0.81
+  parryRadius: 2
   secondaryParryPoint: {fileID: 578860615750830401}
   parryLaunchForce: 80
   parryEnemyKnockback: 12
@@ -1568,6 +1568,10 @@ MonoBehaviour:
   parryRadiusMask:
     serializedVersion: 2
     m_Bits: 1536
+  parryBufferLifetime: 0.3
+  parryChainWindow: 1.2
+  parryChainTransitionMultiplier: 0.4
+  perfectParryInvincibility: 0.35
   gunTransform: {fileID: 355542297727548571}
   parryGunAngle: 90
   parryGunInTime: 0.06
