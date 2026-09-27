@@ -13,6 +13,7 @@ public class PlayerFacingFlip : MonoBehaviour
     [SerializeField] private SpriteRenderer body;
     [SerializeField] private SpriteRenderer pot;
     [SerializeField] private SpriteRenderer head;
+    [SerializeField] private SpriteRenderer gun;
 
     [Tooltip("Seberapa dekat ke vertikal sebelum arah dianggap berubah, supaya sprite tidak berkedip-ganti. 0.1 = sekitar 6 derajat.")]
     [SerializeField, Range(0f, 0.5f)] private float deadzone = 0.1f;
@@ -41,5 +42,11 @@ public class PlayerFacingFlip : MonoBehaviour
         if (body != null) body.flipX = left;
         if (pot != null) pot.flipX = left;
         if (head != null) head.flipX = left;
+
+        // Baionet ikut condition yang sama, tapi di sumbu Y: sprite-nya
+        // digambar tegak, jadi saat baionet berputar 180 ke kiri yang perlu
+        // dikoreksi adalah arah atas-bawah, bukan kiri-kanan. Kalau pakai
+        // flipX, baionet akan tampak terbalik di kedua sisi.
+        if (gun != null) gun.flipY = left;
     }
 }
