@@ -904,6 +904,24 @@ MonoBehaviour:
     pitch: 1
     loop: 0
     source: {fileID: 0}
+  - name: EnemyLaser
+    clip: {fileID: 8300000, guid: 6e11d8977368dea9d97d3850018102bd, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: EnemyHit
+    clip: {fileID: 8300000, guid: 8e4ca6fbbf3cc9504839b63cf8ac9209, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: EnemyDeath
+    clip: {fileID: 8300000, guid: 95d1c4aa85ad39de4aec4c0c12d77794, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
   musicTracks:
   - name: MainTheme
     intro: {fileID: 0}
