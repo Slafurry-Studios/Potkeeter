@@ -760,6 +760,7 @@ GameObject:
   - component: {fileID: 3802729885450549086}
   - component: {fileID: 2304320743265529763}
   - component: {fileID: 6262686089354661673}
+  - component: {fileID: 6453752151210086451}
   m_Layer: 6
   m_Name: Pot
   m_TagString: Player
@@ -939,6 +940,22 @@ MonoBehaviour:
   drainPerSecond: 0.1
   buffThreshold: 0.5
   buffedShootCooldownMultiplier: 0.5
+--- !u!114 &6453752151210086451
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6159158993647073354}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb60cae2f819bda29fef0897d05d58a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bayonet: {fileID: 979977549808994039}
+  body: {fileID: 7164507558044299309}
+  pot: {fileID: 8071290620477727852}
+  deadzone: 0.1
 --- !u!1 &6819366886989486918
 GameObject:
   m_ObjectHideFlags: 0
