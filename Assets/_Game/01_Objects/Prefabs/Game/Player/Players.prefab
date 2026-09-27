@@ -1393,6 +1393,10 @@ MonoBehaviour:
   parryRadiusMask:
     serializedVersion: 2
     m_Bits: 0
+  gunTransform: {fileID: 355542297727548571}
+  parryGunAngle: 90
+  parryGunInTime: 0.06
+  parryGunOutTime: 0.12
   hinge: {fileID: 234548831499439611}
   parryVFX: {fileID: 1766148047238496157}
 --- !u!1 &7587239081374493148
@@ -1910,7 +1914,7 @@ HingeJoint2D:
   m_BreakAction: 3
   m_AutoConfigureConnectedAnchor: 1
   m_Anchor: {x: 0, y: 0}
-  m_ConnectedAnchor: {x: -0.13599977, y: -0.34500018}
+  m_ConnectedAnchor: {x: -0.13600011, y: -0.34500015}
   m_UseMotor: 0
   m_Motor:
     m_MotorSpeed: 0

@@ -49,10 +49,27 @@ public class BayonetController : MonoBehaviour
     [Tooltip("Layer yang dicari di area parry untuk sumber damage BERBASIS COLLIDER (musuh, jebakan). Peluru tidak perlu dicentang di sini - peluru dicari langsung lewat BulletManager karena tidak punya collider. Kalau kosong, parry hanya bisa menetralkan peluru.")]
     [SerializeField] private LayerMask parryRadiusMask;
 
+    [Header("Parry Gun Pose")]
+    [Tooltip("Transform GunBayonet. Diputar saat parry. Kalau kosong, Lookup tidak jalan - WAJIB di-assign, bukan Trigger/joint shootDir.")]
+    [SerializeField] private Transform gunTransform;
+    [Tooltip("Sudut lokal yang ditambahkan ke rotasi dasar gun saat parry. Base gun di +90, jadi 90 memberi 180 (blade membalik). Pakai -90 kalau terbalik.")]
+    [SerializeField] private float parryGunAngle = 90f;
+    [Tooltip("Lama pistol berputar ke pose parry. 0 = langsung snap.")]
+    [SerializeField] private float parryGunInTime = 0.06f;
+    [Tooltip("Lama pistol balik ke stance normal setelah parry selesai. 0 = langsung snap.")]
+    [SerializeField] private float parryGunOutTime = 0.12f;
+
     [Header("References")]
     [SerializeField] private HingeJoint2D hinge;
     [Tooltip("Spawner VFX parry. Kalau kosong, dicari otomatis di object ini atau parent's-nya.")]
     [SerializeField] private ParryVFX parryVFX;
+
+    // Rotasi dasar GunBayonet diambil dari prefab, bukan ditulis 90 di sini,
+    // supaya kalau art-nya digambar ulang dengan sudut lain pose parry tetap
+    // relatif terhadap stance yang sebenarnya.
+    private Quaternion gunBaseLocalRotation = Quaternion.identity;
+    private float parryGunAngleNow;
+    private SpriteRenderer gunRenderer;
 
     private const float DirectionEpsilonSqr = 0.001f;
     private const float TrajectoryEpsilonSqr = 0.0001f;
@@ -120,6 +137,17 @@ public class BayonetController : MonoBehaviour
             Debug.LogError($"[{nameof(BayonetController)}] '{nameof(basePivot)}' belum di-assign pada '{name}'.", this);
         }
 
+        if (gunTransform == null)
+        {
+            Debug.LogError($"[{nameof(BayonetController)}] '{nameof(gunTransform)}' belum di-assign pada '{name}', " +
+                           "jadi pose pistol saat parry tidak akan bergerak.", this);
+        }
+        else
+        {
+            gunBaseLocalRotation = gunTransform.localRotation;
+            gunRenderer = gunTransform.GetComponent<SpriteRenderer>();
+        }
+
         // Inisialisasi State Machine & States
         StateMachine = new StateMachine();
         IdleState = new BayonetIdleState(this);
@@ -156,6 +184,50 @@ public class BayonetController : MonoBehaviour
     {
         StateMachine.Update();
         UpdateReloadState();
+    }
+
+    /// <summary>
+    /// Memutar GunBayonet 90 derajat dari stance-nya selama parry, lalu
+    /// dikembalikan begitu state parry selesai.
+    ///
+    /// Dipasang di LateUpdate, bukan Update/FixedUpdate, karena rotasi gun
+    /// ini menimpa rotasi local yang ditulis oleh physics. ProcessAimingAndPositioning
+    /// jalan di FixedUpdate lewat state, dan gun adalah anak dari Bayonet
+    /// yang rotasinya dikendalikan HingeJoint2D. Menulis di LateUpdate
+    /// memastikan pose parry selalu menang atas aim.
+    ///
+    /// Yang diputar cuma Transform gun, jadi shootDir ("Square") dan
+    /// basePivot tidak ikut bergerak - titik parry dan arah tembak tetap
+    /// sama seperti stance normal.
+    /// </summary>
+    private void LateUpdate()
+    {
+        if (gunTransform == null) return;
+
+        bool parrying = StateMachine != null && StateMachine.CurrentState == ParryingState;
+
+        // PlayerFacingFlip membalik sprite pistol dengan flipY saat baionet
+        // mengarah ke kiri. flipY mencerminkan gambar di sumbu Y, jadi
+        // rotasi +90 yang tadinya terlihat ke atas jadi terlihat ke bawah.
+        // Sudutnya karena itu dibalik mengikuti flipY, bukan dihitung ulang
+        // dari AimDirection - kalau aim atau deadzone-nya berubah, pose ini
+        // otomatis ikut karena membaca keadaan visual yang sebenarnya.
+        bool mirrored = gunRenderer != null && gunRenderer.flipY;
+        float parryAngle = mirrored ? -parryGunAngle : parryGunAngle;
+
+        float target = parrying ? parryAngle : 0f;
+        float duration = parrying ? parryGunInTime : parryGunOutTime;
+
+        // Eksponensial, bukan lerp dengan faktor tetap, supaya lama menuju
+        // target tidak ikut berubah kalau frame rate berubah.
+        float t = duration <= 0f ? 1f : 1f - Mathf.Exp(-Time.deltaTime / duration);
+        parryGunAngleNow = Mathf.Lerp(parryGunAngleNow, target, t);
+
+        // Snapped begitu dekatnya biar tidak menulis rotasi selamanya
+        // untuk selisih yang sudah tidak kelihatan.
+        if (Mathf.Abs(parryGunAngleNow - target) < 0.05f) parryGunAngleNow = target;
+
+        gunTransform.localRotation = gunBaseLocalRotation * Quaternion.Euler(0f, 0f, parryGunAngleNow);
     }
 
     /// <summary>
