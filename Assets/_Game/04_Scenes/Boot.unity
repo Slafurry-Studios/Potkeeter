@@ -922,6 +922,24 @@ MonoBehaviour:
     pitch: 1
     loop: 0
     source: {fileID: 0}
+  - name: BossAttackCue
+    clip: {fileID: 8300000, guid: 2bfd473e04385d5948f849ecff6c405f, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: BossSpecialAttack
+    clip: {fileID: 8300000, guid: 5e23590cb03b3fbb7bd1fd8997b7d486, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: BossDefeat
+    clip: {fileID: 8300000, guid: 2ae18c0b8744e3984b618b3e24708503, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
   musicTracks:
   - name: MainTheme
     intro: {fileID: 0}

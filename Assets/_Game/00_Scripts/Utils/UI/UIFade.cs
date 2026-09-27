@@ -6,23 +6,64 @@ using UnityEngine.Events;
 namespace Slafurry.Utils.UI
 {
     /// <summary>
-    /// Simple one-shot fade in/out for a CanvasGroup. Use for screen
-    /// transitions, tooltips appearing/disappearing, or any UI element
-    /// that needs to fade rather than blink (see UIBlink for repeating loop).
+    /// One-shot fade in/out controller for a CanvasGroup.
+    /// Useful for screen transitions, panels, tooltips, and other UI elements
+    /// that need smooth visibility changes.
     /// </summary>
     [RequireComponent(typeof(CanvasGroup))]
     public class UIFade : MonoBehaviour
     {
-        [SerializeField] private CanvasGroup canvasGroup;
-        [SerializeField] private float duration = 0.3f;
-        [SerializeField] private bool useUnscaledTime = true;
-        [SerializeField] private bool disableInteractionWhileHidden = true;
-        [SerializeField] private bool playOnAwake = false;
+        #region Inspector
+
+        [Header("References")]
+        [Tooltip("CanvasGroup controlled by this component.")]
+        [SerializeField]
+        private CanvasGroup canvasGroup;
+
+        [Header("Fade Settings")]
+        [Min(0f)]
+        [Tooltip("Default duration of the fade in seconds.")]
+        [SerializeField]
+        private float duration = 0.3f;
+
+        [Tooltip("Use unscaled time so the fade continues while Time.timeScale is 0.")]
+        [SerializeField]
+        private bool useUnscaledTime = true;
+
+        [Tooltip(
+            "When enabled, the CanvasGroup becomes non-interactable and stops " +
+            "blocking raycasts when fully hidden."
+        )]
+        [SerializeField]
+        private bool disableInteractionWhileHidden = true;
+
+        [Header("Startup")]
+        [Tooltip(
+            "Automatically fade when the object starts. " +
+            "If the initial alpha is above 0.5, it fades out; otherwise it fades in."
+        )]
+        [SerializeField]
+        private bool playOnAwake = false;
+
         [Header("Events")]
-        [SerializeField] public UnityEvent OnFadeInComplete;
-        [SerializeField] public UnityEvent OnFadeOutComplete;
+        [Tooltip("Invoked when Fade In finishes.")]
+        [SerializeField]
+        private UnityEvent onFadeInComplete;
+
+        [Tooltip("Invoked when Fade Out finishes.")]
+        [SerializeField]
+        private UnityEvent onFadeOutComplete;
+
+        #endregion
 
         private Coroutine _routine;
+
+        #region Unity
+
+        private void Reset()
+        {
+            canvasGroup = GetComponent<CanvasGroup>();
+        }
 
         private void Awake()
         {
@@ -32,59 +73,170 @@ namespace Slafurry.Utils.UI
 
         private void Start()
         {
-            if (playOnAwake)
-            {
-                if(canvasGroup.alpha > 0.5f)
-                    FadeOut(duration);
-                else FadeIn(duration);
-            }
+            if (!playOnAwake)
+                return;
+
+            if (canvasGroup.alpha > 0.5f)
+                FadeOut();
+            else
+                FadeIn();
         }
 
-        public void FadeIn(float? overrideDuration = null)
+        #endregion
+
+        #region Public API
+
+        /// <summary>
+        /// Fades the CanvasGroup to fully visible.
+        /// </summary>
+        public void FadeIn(float overrideDuration = -1f)
         {
-            StartFade(canvasGroup.alpha, 1f, overrideDuration ?? duration, () => OnFadeInComplete?.Invoke());
+            float fadeDuration = GetDuration(overrideDuration);
+
+            StartFade(
+                canvasGroup.alpha,
+                1f,
+                fadeDuration,
+                () => onFadeInComplete?.Invoke()
+            );
         }
 
-        public void FadeOut(float? overrideDuration = null)
+        /// <summary>
+        /// Fades the CanvasGroup to fully hidden.
+        /// </summary>
+        public void FadeOut(float overrideDuration = -1f)
         {
-            StartFade(canvasGroup.alpha, 0f, overrideDuration ?? duration, () => OnFadeOutComplete?.Invoke());
+            float fadeDuration = GetDuration(overrideDuration);
+
+            StartFade(
+                canvasGroup.alpha,
+                0f,
+                fadeDuration,
+                () => onFadeOutComplete?.Invoke()
+            );
         }
 
+        /// <summary>
+        /// Immediately sets the CanvasGroup alpha without animation.
+        /// </summary>
         public void SetImmediate(float alpha)
         {
-            if (_routine != null) StopCoroutine(_routine);
-            ApplyAlpha(alpha);
+            StopCurrentFade();
+
+            ApplyAlpha(Mathf.Clamp01(alpha));
         }
 
-        private void StartFade(float from, float to, float dur, Action onComplete)
+        /// <summary>
+        /// Immediately makes the CanvasGroup fully visible.
+        /// </summary>
+        public void ShowImmediate()
         {
-            if (_routine != null) StopCoroutine(_routine);
-            _routine = StartCoroutine(FadeRoutine(from, to, dur, onComplete));
+            SetImmediate(1f);
         }
 
-        private IEnumerator FadeRoutine(float from, float to, float dur, Action onComplete)
+        /// <summary>
+        /// Immediately hides the CanvasGroup.
+        /// </summary>
+        public void HideImmediate()
         {
-            float t = 0f;
-            while (t < dur)
+            SetImmediate(0f);
+        }
+
+        /// <summary>
+        /// Stops the current fade and keeps the current alpha.
+        /// </summary>
+        public void StopFade()
+        {
+            StopCurrentFade();
+        }
+
+        #endregion
+
+        #region Fade
+
+        private float GetDuration(float overrideDuration)
+        {
+            return overrideDuration >= 0f
+                ? overrideDuration
+                : duration;
+        }
+
+        private void StartFade(
+            float from,
+            float to,
+            float fadeDuration,
+            Action onComplete)
+        {
+            StopCurrentFade();
+
+            if (fadeDuration <= 0f)
             {
-                t += useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
-                ApplyAlpha(Mathf.Lerp(from, to, dur > 0 ? t / dur : 1f));
+                ApplyAlpha(to);
+                onComplete?.Invoke();
+                return;
+            }
+
+            _routine = StartCoroutine(
+                FadeRoutine(from, to, fadeDuration, onComplete)
+            );
+        }
+
+        private IEnumerator FadeRoutine(
+            float from,
+            float to,
+            float fadeDuration,
+            Action onComplete)
+        {
+            float elapsed = 0f;
+
+            while (elapsed < fadeDuration)
+            {
+                elapsed += useUnscaledTime
+                    ? Time.unscaledDeltaTime
+                    : Time.deltaTime;
+
+                float progress = Mathf.Clamp01(elapsed / fadeDuration);
+
+                ApplyAlpha(Mathf.Lerp(from, to, progress));
+
                 yield return null;
             }
+
             ApplyAlpha(to);
+
             _routine = null;
+
             onComplete?.Invoke();
         }
 
+        private void StopCurrentFade()
+        {
+            if (_routine == null)
+                return;
+
+            StopCoroutine(_routine);
+            _routine = null;
+        }
+
+        #endregion
+
+        #region CanvasGroup
+
         private void ApplyAlpha(float alpha)
         {
+            alpha = Mathf.Clamp01(alpha);
+
             canvasGroup.alpha = alpha;
-            if (disableInteractionWhileHidden)
-            {
-                bool visible = alpha > 0.01f;
-                canvasGroup.interactable = visible;
-                canvasGroup.blocksRaycasts = visible;
-            }
+
+            if (!disableInteractionWhileHidden)
+                return;
+
+            bool visible = alpha > 0.01f;
+
+            canvasGroup.interactable = visible;
+            canvasGroup.blocksRaycasts = visible;
         }
+
+        #endregion
     }
 }
