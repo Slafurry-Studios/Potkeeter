@@ -40,6 +40,8 @@ public class BayonetController : MonoBehaviour
     [Header("Parry Settings")]
     [Tooltip("Jarak jangkauan bayonet untuk mendeteksi serangan/hitbox musuh")]
     [SerializeField] private float parryRadius = 1.5f;
+    [Tooltip("Titik parry tambahan, selain ujung bayonet. Kosongkan kalau tidak dipakai. Radiusnya sama dengan parryRadius, jadi dua titik ini jangkauan parry jadi lebih luas tanpa menambah damage atau kecepatan apa pun.")]
+    [SerializeField] private Transform secondaryParryPoint;
     [Tooltip("Kekuatan dorongan peluncuran pemain saat Parry sukses")]
     [SerializeField] private float parryLaunchForce = 20f;
     [Tooltip("Kekuatan knockback yang diberikan ke musuh saat ter-parry")]
@@ -69,6 +71,10 @@ public class BayonetController : MonoBehaviour
     // relatif terhadap stance yang sebenarnya.
     private Quaternion gunBaseLocalRotation = Quaternion.identity;
     private float parryGunAngleNow;
+
+    // Dipakai ulang oleh ExecuteParryLogic() dan OnDrawGizmos(), jadi tidak
+    // dialokasi ulang tiap frame. Kapasitas 2: shootDir + secondaryParryPoint.
+    private readonly List<Vector2> parryPoints = new List<Vector2>(2);
     private SpriteRenderer gunRenderer;
 
     private const float DirectionEpsilonSqr = 0.001f;
@@ -413,38 +419,80 @@ public class BayonetController : MonoBehaviour
         AudioSystem.Instance?.PlaySFX("Reloading", waitForCompletion: false);
     }
 
+    /// <summary>
+    /// Titik-titik yang di-query waktu parry ditekan: ujung bayonet (shootDir)
+    /// sebagai titik utama, lalu secondaryParryPoint kalau di-assign. Dua-duanya
+    /// memakai parryRadius yang sama.
+    ///
+    /// Daftar ini dipakai ulang (bukan di-alokasi ulang) karena OnDrawGizmos
+    /// memanggilnya tiap frame selama gizmo aktif.
+    /// </summary>
+    private void GatherParryPoints(List<Vector2> into)
+    {
+        into.Clear();
+        into.Add(shootDir != null ? (Vector2)shootDir.position : (Vector2)transform.position);
+
+        if (secondaryParryPoint != null) into.Add(secondaryParryPoint.position);
+    }
+
     public void ExecuteParryLogic()
     {
         Vector2 trajectoryDir = GetTrajectoryDirection();
-        Vector2 parryPoint = shootDir != null ? (Vector2)shootDir.position : (Vector2)transform.position;
-
-        // Musuh, jebakan, dan sumber damage lain yang punya collider: cari lewat
-        // physics. Layer ini harus berisi semua sumber damage berbasis collider.
-        Collider2D[] hits = Physics2D.OverlapCircleAll(parryPoint, parryRadius, parryRadiusMask);
+        GatherParryPoints(parryPoints);
 
         // Satu objek bisa punya beberapa collider (atau collider di beberapa
-        // anak), jadi hasil query dikumpulkan per IParryable supaya tidak
-        // dipanggil dua kali.
+        // anak), dan satu collider bisa masuk area lebih dari satu titik parry.
+        // Hasilnya dikumpulkan per IParryable supaya OnParried() tidak pernah
+        // dipanggil dua kali untuk objek yang sama.
         HashSet<IParryable> countered = new HashSet<IParryable>();
-        foreach (Collider2D hit in hits)
-        {
-            IParryable parryable = hit.GetComponentInParent<IParryable>();
-            if (parryable == null || !countered.Add(parryable)) continue;
-            parryable.OnParried();
-        }
+        HashSet<Collider2D> seenHits = new HashSet<Collider2D>();
+        List<Collider2D> allHits = new List<Collider2D>();
 
-        // Peluru tidak punya collider, jadi mustahil ditemukan query physics.
-        // Yang ditanyakan balik ke pelurunya sendiri, lewat kotak yang sama
-        // dengan yang dia pakai untuk menghantam.
+        // Titik yang benar-benar mengenai sesuatu, dipakai untuk memanchor VFX.
+        // Kalau parry meleset di semua titik, ini tetap titik utama.
+        bool anchorSet = false;
+        Vector2 anchorPoint = parryPoints[0];
+
         BulletManager bullets = BulletManager.Instance;
-        if (bullets != null)
+
+        for (int p = 0; p < parryPoints.Count; p++)
         {
-            for (int i = bullets.ActiveBullets.Count - 1; i >= 0; i--)
+            Vector2 point = parryPoints[p];
+            int counteredBefore = countered.Count;
+
+            // Musuh, jebakan, dan sumber damage lain yang punya collider: cari
+            // lewat physics. Layer ini harus berisi semua sumber damage berbasis
+            // collider.
+            Collider2D[] hits = Physics2D.OverlapCircleAll(point, parryRadius, parryRadiusMask);
+            foreach (Collider2D hit in hits)
             {
-                Bullet bullet = bullets.ActiveBullets[i];
-                if (bullet == null || !bullet.IsInsideParryArea(parryPoint, parryRadius)) continue;
-                bullet.OnParried();
-                countered.Add(bullet);
+                // Disimpan untuk loop knockback nanti, dan hanya sekali per
+                // collider supaya satu musuh tidak dapat dorongan ganda.
+                if (seenHits.Add(hit)) allHits.Add(hit);
+
+                IParryable parryable = hit.GetComponentInParent<IParryable>();
+                if (parryable == null || !countered.Add(parryable)) continue;
+                parryable.OnParried();
+            }
+
+            // Peluru tidak punya collider, jadi mustahil ditemukan query physics.
+            // Yang ditanyakan balik ke pelurunya sendiri, lewat kotak yang sama
+            // dengan yang dia pakai untuk menghantam.
+            if (bullets != null)
+            {
+                for (int i = bullets.ActiveBullets.Count - 1; i >= 0; i--)
+                {
+                    Bullet bullet = bullets.ActiveBullets[i];
+                    if (bullet == null || !bullet.IsInsideParryArea(point, parryRadius)) continue;
+                    bullet.OnParried();
+                    countered.Add(bullet);
+                }
+            }
+
+            if (!anchorSet && countered.Count > counteredBefore)
+            {
+                anchorPoint = point;
+                anchorSet = true;
             }
         }
 
@@ -471,7 +519,7 @@ public class BayonetController : MonoBehaviour
 
         // Musuh yang ter-counter terdorong searah bilah. Peluru tidak punya
         // Rigidbody2D, jadi tidak mungkin disentuh di sini.
-        foreach (Collider2D hit in hits)
+        foreach (Collider2D hit in allHits)
         {
             Rigidbody2D enemyRb = hit.GetComponentInParent<Rigidbody2D>();
             if (enemyRb == playerRb || enemyRb == bayonetRb) continue;
@@ -481,10 +529,10 @@ public class BayonetController : MonoBehaviour
         bayonetRb.AddForce(trajectoryDir * shootForce, ForceMode2D.Impulse);
         AudioSystem.Instance?.PlaySFX("ParrySFX", waitForCompletion: false);
 
-        // Posisi dari ujung bayonet, rotasi dari bayonet itu sendiri.
+        // Posisi dari titik parry yang mengenai, rotasi dari bayonet itu sendiri.
         // shootDir adalah child, jadi rotasinya bisa berbeda dari
         // rotasi bayonet kalau ada offset lokal di tip-nya.
-        parryVFX?.PlayAt(parryPoint, transform.eulerAngles.z);
+        parryVFX?.PlayAt(anchorPoint, transform.eulerAngles.z);
 
         ParryMeter.Instance?.RegisterParry();
     }
@@ -516,9 +564,14 @@ public class BayonetController : MonoBehaviour
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(currentAnchorPoint, 0.08f);
 
-        Vector2 parryPoint = shootDir != null ? (Vector2)shootDir.position : (Vector2)transform.position;
+        // Satu lingkaran hijau per titik parry, jadi jangkauan tambahan langsung
+        // kelihatan tanpa perlu play mode.
+        GatherParryPoints(parryPoints);
         Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(parryPoint, parryRadius);
+        for (int i = 0; i < parryPoints.Count; i++)
+        {
+            Gizmos.DrawWireSphere(parryPoints[i], parryRadius);
+        }
 
         Gizmos.color = Color.magenta;
         Gizmos.DrawRay(pivotPosition, -trajectoryDirection * (parryLaunchForce * 0.1f));
