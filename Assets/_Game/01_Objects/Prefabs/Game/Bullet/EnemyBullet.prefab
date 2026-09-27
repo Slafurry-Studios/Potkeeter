@@ -100,10 +100,11 @@ MonoBehaviour:
   boxSize: {x: 0.3, y: 0.15}
   hitMask:
     serializedVersion: 2
-    m_Bits: 209
+    m_Bits: 2112
   speed: 6
   damage: 1
   maxHealth: 1
   maxLifetime: 4
   showGizmos: 1
   gizmoPathLength: 3
+  hitVFX: {fileID: 0}

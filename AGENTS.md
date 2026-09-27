@@ -21,8 +21,8 @@ dotnet build Assembly-CSharp-Editor.csproj # Assets/Editor
   `dotnet build` does not prove a new file compiles.** Use the standalone check below instead.
 - **An incremental build reports `0 Warning(s)` even when warnings exist** — nothing recompiles,
   so nothing is re-diagnosed. Use `dotnet build Assembly-CSharp.csproj -t:Rebuild` to see them.
-  Baseline is exactly three: `CS0649 GameFeel.gameFeelEffects`, `CS0414 GameOver.debug`,
-  `CS0414 DialogHUD.typeSFX`. Anything else is yours.
+  Baseline is exactly **two**: `CS0649 GameFeel.gameFeelEffects` and `CS0414 DialogHUD.typeSFX`.
+  Anything else is yours.
 
 **Standalone compile — the only way to check a brand-new `.cs`.** Everything except
 `Assembly-CSharp*` comes from references, so this catches new files too. Glob sources rather than
@@ -74,8 +74,8 @@ broke (empty `$CSC`, wrong `$ED`), not that the code is clean.
 `Library/ScriptAssemblies/*.dll` supplies the packages (UGUI, TMP, Input System) — an
 `Assets/**`-only reference set will fail on `Slider`, `TextMeshProUGUI`, etc. Expect **spurious
 `CS0649` on every `[SerializeField]`** (hence `-nowarn:CS0649`): inspector assignment is invisible
-to a standalone compile. Baseline is **two** `CS0414`s (`GameOver.debug`, `DialogHUD.typeSFX`) —
-`GameFeel.gameFeelEffects`' `CS0649` is suppressed here, which is why the full build lists three.
+to a standalone compile. Baseline is exactly **one** `CS0414` (`DialogHUD.typeSFX`) —
+`GameFeel.gameFeelEffects`' `CS0649` is suppressed here, which is why the full build lists two.
 This still does not catch a bad `.meta` GUID or a missing inspector reference; only Play mode does.
 
 Player build (same args CI uses). No Unity editor is on PATH (`which unity` hits an unrelated
@@ -90,11 +90,14 @@ Player build (same args CI uses). No Unity editor is on PATH (`which unity` hits
 `Assets/Editor/BuildScript.cs` **requires** `-buildTarget` (missing → `Exit(1)`), builds **every
 enabled scene in `ProjectSettings/EditorBuildSettings.asset`, in list order**, and writes to
 `build/<Target>/`. Supported: `StandaloneWindows64`, `StandaloneOSX`, `StandaloneLinux64`,
-`WebGL`. 6 scenes are enabled, in this order: `Boot`, `Main Menu`, `Game`, `Playground`,
-`About Menu`, `Settings Menu`. A half-authored scene left enabled fails the whole build — check
-that file before blaming a code change. Scenes live in subfolders (`04_Scenes/Game/Game.unity`,
-`04_Scenes/Menu/Main Menu.unity`, `04_Scenes/Dev/Playground.unity`); `Game/Level 1.unity` exists
-but is deliberately **not** in the build list.
+`WebGL`. 6 scenes are enabled, in this order: `Boot`, `Main Menu`, `About Menu`, `Settings Menu`,
+`Level 1`, `Level 2`. A half-authored scene left enabled fails the whole build — check
+that file before blaming a code change. Scenes live in subfolders (`04_Scenes/Game/Level 1.unity`,
+`04_Scenes/Menu/Main Menu.unity`, `04_Scenes/Dev/Playground.unity`). `04_Scenes/Game/Game.unity`
+was renamed to `Level 1` (GUID preserved, so references followed it). `Playground` was dropped
+from the build list when `Level 2` entered it, so `Playground` ships only when you open the
+project directly. `BootstrapLoader.targetSceneName` must be `Main Menu` to boot through the
+menu; `Level 2` is reachable from it.
 
 CI (`unity-itchio-deploy.yml`) activates a **Personal** license via
 `buildalon/activate-unity-license@v2`, and the `windows-latest` runner is flaky at it — a job can
@@ -125,7 +128,7 @@ de-duplicate.
 |---|---|
 | `Singleton<T>` | `Awake` is `private` and not virtual (treated as sealed); it self-registers with `LoadingSystem.Instance` and calls abstract `OnSingletonAwake()`. Also declares `OnSingletonDestroyed()` (virtual, undocumented — prefer it over writing teardown). Override the hooks, never `Awake`. |
 | `GameSystem<T>` | `Singleton` + `DontDestroyOnLoad`. This is what a cross-scene service extends. |
-| `LocalSingleton<T>` | Per-scene, does *not* persist. Only `ScreenFlash` and `BulletManager`. Because it doesn't persist, a scene that needs one must contain it (or instantiate the prefab that does). |
+| `LocalSingleton<T>` | Per-scene, does *not* persist. Only `ScreenFlash` and `BulletManager`. Because it doesn't persist, a scene that needs one must contain it (or instantiate the prefab that does). Neither is in a scene: only `BulletManager` is on `Players.prefab`, so `ScreenFlash.Instance` is always null at runtime. |
 | `Manager` | Session coordinator that registers with `GameManager`. **Aspirational** — `GameManager` doesn't exist, nothing extends `Manager`, and `ObjectiveManager` extends `Singleton<ObjectiveManager>` instead. `StoryManager` is a `GameSystem`, not a `Manager`. |
 
 **`IInitializable` contract** — the rule the codebase depends on:
@@ -149,12 +152,15 @@ subscriber: `LoadingScreenUI`). Re-entrant loads are dropped with a warning. `Ma
 calls `SceneManager.LoadScene` directly for About/Settings, bypassing the gate.
 
 **Scene names are a live bug, not just a style nit.** Names are plain strings into
-`LoadSceneAsync`, so a wrong one fails *silently*. Real names have spaces: `Game`, `Main Menu`,
-`Settings Menu`, `About Menu`. The C# defaults don't match — `MainMenu.cs` uses `GameScene` /
-`SettingsScene` / `AboutScene`, and `AboutMenu.cs` / `SettingsMenu.cs` default to `MainMenu`
-(real: `Main Menu`). The committed `MainMenu.prefab` still serializes `_gameSceneName: GameScene`
-and `GameOver.cs:41` hardcodes `SceneSystem.Load("MainMenu")` — both point at scenes that don't
-exist, so **don't "trust the inspector value", verify it against `EditorBuildSettings.asset`**.
+`LoadSceneAsync`, so a wrong one fails *silently*. Real names have spaces: `Level 1`,
+`Main Menu`, `Settings Menu`, `About Menu`. The C# defaults don't match — `MainMenu.cs` uses
+`GameScene` / `SettingsScene` / `AboutScene`, `AboutMenu.cs` / `SettingsMenu.cs` default to
+`MainMenu` (real: `Main Menu`), and `BootstrapLoader.targetSceneName` defaults to `MainMenu`
+(the scene serializes the correct `Main Menu`, so boot works). The committed `MainMenu.prefab`
+still serializes `_gameSceneName: GameScene` — a scene that doesn't exist (it was renamed to
+`Level 1`) — so **don't "trust the inspector value", verify it against
+`EditorBuildSettings.asset`**. `GameOver.cs` is the one place this was done right
+(`private const string MainMenuScene = "Main Menu"`).
 
 **Bridges** (`Core/Bridge/`): `SingletonEventsBridge` maps `GetComponents<ISubBridge>()` in `Awake`
 to `GetBridge<T>()`, so gameplay reaches system behaviour without a direct reference. Despite the
@@ -164,15 +170,28 @@ name it relays no events; `AudioBridge` is the only implementor.
 `Assets/_Game/05_Settings/Input/Main Input.inputactions`; read input through the `Controls` static
 facade in `InputHub.cs` — that file lives in `01_Objects/Prefabs/Input/`, not under `00_Scripts`.
 `Main Input.cs` is `<auto-generated>` by the Input System code generator, so edit the
-`.inputactions` asset, never the wrapper. Caveat to the "never legacy `UnityEngine.Input`" rule:
-`DialogHUD.cs:48` still calls `Input.GetKeyDown(KeyCode.Space)`, which **throws at runtime** under
-`activeInputHandler: 2`.
+`.inputactions` asset, never the wrapper. Caveat to the "never legacy `UnityEngine.Input`" rule —
+two files still call it, and **both throw at runtime** under `activeInputHandler: 2`:
+`DialogHUD.cs:48` (`Input.GetKeyDown(KeyCode.Space)`) and `CameraZoom.cs:70`
+(`Input.GetAxis("Mouse ScrollWheel")`).
 
 **Triggers** (`00_Scripts/Game/Triggers/`, all **global** namespace like the rest of `Game/`):
 `BaseTrigger` supplies the `playLimit` / `unlimited` gate, extended by `CountTrigger`,
 `DelayTrigger` and `SceneStartTrigger`; `ChangeSceneTrigger` is standalone and just calls
 `SceneSystem.Load`. Behaviour is inspector-authored through `UnityEvent`s, so wiring lives in the
 scene YAML, not in code.
+
+**`CollideTrigger` and `DialogTrigger` are in a *different* folder** (`00_Scripts/Game/Collide
+Trigger/`), so the section above doesn't cover them. `DialogTrigger` has no collider callback at
+all — it's invoked *by* a `CollideTrigger`'s UnityEvent. `CollideTrigger` filters both
+`OnTriggerEnter2D` and `OnTriggerExit2D` through `requiredTag` (default `"Player"`); empty means
+"accept anything". It compares `other.tag`, **not** `CompareTag`, on purpose: `CompareTag` throws
+`UnityException` for a tag missing from `TagManager`, so one typo in the inspector field would fire
+on every contact. The filter matters more than it looks — the player carries **four** `BoxCollider2D`
+(`Pot` tagged `Player`; `Bayonet`, `Body`, `GunBayonet` all `Untagged`), so an unfiltered trigger
+fires `onTriggerEnter` **once per collider**. Both level-exit `CollideTrigger`s wire to
+`ChangeSceneTrigger.ChangeScene`, so that used to call `SceneSystem.Load` four times at once and
+eat the re-entrancy warning. `TagManager.asset` declares only `Enemy`; `Player` is a Unity builtin.
 
 **Menu UI helpers** (`00_Scripts/Utils/UI/`, namespace `Slafurry.Utils.UI` — *not* global):
 `UIFloat` (sine `anchoredPosition` drift), `ButtonHover` + `ButtonClickPunch` (press-squash,
@@ -221,13 +240,40 @@ cannot assume a uniform way to reach the player; check the type.
 - **`parryRadiusMask` must be the Enemy layer only.** The mask was renamed from `enemyLayer`, so
   existing prefab assignments were lost — bullets are found through `BulletManager.ActiveBullets`
   and must *not* be in the mask. Setting it to 0 (a common state) silently disables parry against
-  collider sources while bullets still work.
+  collider sources while bullets still work. Any new `IParryable` collider source needs its layer
+  in that mask or parry logs `[Parry Missed]` and nothing else.
+- **`HazardArea`** (`Game/Triggers/`, global ns) is a damage area that is also `IParryable`. Parry
+  does *not* remove it — it only suppresses damage for `parryGraceDuration` (0 = permanent until
+  the object is disabled); the launch out of the area is `BayonetController.parryLaunchForce`.
+  Two inspector requirements, both silent when unmet: its `Collider2D` needs `isTrigger` (or
+  `OnTriggerEnter2D` never fires) and its layer must be in `parryRadiusMask`.
+- **`ObjectiveManager` is not attached in any scene or prefab**, so its `Instance` is always null
+  at runtime. `GameOver.BackToMainMenu` calls `ObjectiveManager.Instance?.ClearObjectives()` for
+  this reason — use `?.` if you reach it too.
 - **Bullets have no collider, by design.** `BulletManager` pools per prefab, tracks
   `ActiveBullets`, and parry tests `IsInsideParryArea` against the same `EffectiveBoxSize` the
   damage `BoxCast` uses. Don't "fix" a missing bullet collider — there isn't one to add.
 - **`HealthSystem` guards first, then raises events.** `OnDamageReceived` / `OnHealthChanged` fire
   only after `if (IsDead || damage <= 0f) return`. Hook one-shot feedback (SFX, VFX, screenshake) to
   the event, not to your own `TakeDamage()` wrapper, or it plays for rejected hits.
+- **i-frames are gated in `PlayerHealth.TakeDamage`, not in `HealthSystem`** — `HealthSystem` is a
+  plain C# class shared with `EnemyHealth`, so i-frames there would apply to every enemy and it has
+  no update loop anyway. `PlayerHealth.TakeDamage` is the single choke point, so `Bullet` (via
+  `IDamageable`) and `HazardArea` are covered for free. Two consequences: anything calling
+  `PlayerHealth.Instance.Health.TakeDamage()` directly **bypasses** i-frames (that's why
+  `DummyEnemyTest` goes through `TakeDamage()`), and the window is opened inside
+  `HandleDamageReceived` — the only place guaranteed to mean damage actually landed, so rejected
+  hits can't keep resetting the timer.
+- **The i-frame clock is `Time.unscaledTime`, deliberately.** `HitStop` zeroes `timeScale` exactly
+  when the player is hit, so a scaled timer would freeze the window during hitstop; `GameOver` also
+  pauses. `PlayerDamageBlink` uses `WaitForSecondsRealtime` to match.
+- **`PlayerDamageBlink` multiplies sprite alpha, never sets it.** In `Players.prefab`, `Bayonet`
+  and `Square` have alpha `0` (deliberately hidden) and `Pot` is red-tinted, so assigning
+  `color.a = offAlpha` would reveal the hidden sprites and drop Pot's tint. It auto-discovers
+  renderers and skips any under a `ParallaxLayer` — `Parallax Bg` is a child of `Players` too, so
+  filtering by component (not object name) is what keeps the background from blinking. It restores
+  the original colors in `OnDisable` **and** on `OnDeath`, or the player stays invisible into the
+  game-over screen.
 - **Unity class IDs in YAML are easy to misread:** `!u!61` is `BoxCollider2D` (2D — it has
   `m_EdgeRadius`); `BoxCollider` (3D) is `!u!65`. Both `Drone.prefab` and `Players.prefab` already
   carry correct `BoxCollider2D`s.
@@ -301,11 +347,19 @@ Both are inspector-wired, not `Resources`-loaded — `Assets/Resources` holds on
   assigning `.value` fires the listener, so the restored value reaches both the slider and the
   mixer. Don't "optimise" it back to `SetValueWithoutNotify` — that moves the slider only and the
   mixer silently stays at its own default until the player drags something.
-- **`sfxSounds` holds 4 keys:** `ParrySFX`, `TakeDamage`, `Reloading`, `Shoot` — the complete
-  player set, all wired. Still unregistered, so these all miss and no-op: `ObjectiveManager`'s
+- **`sfxSounds` holds 7 keys:** `ParrySFX`, `TakeDamage`, `Reloading`, `Shoot` (the player set, all
+  wired) plus `EnemyLaser`, `EnemyHit`, `EnemyDeath`, driven by `EnemyShooter.fireSFX` and
+  `EnemyHealth.hitSFX` / `deathSFX` — all three default to a key, and empty means silence. Still
+  unregistered, so these all miss and no-op: `ObjectiveManager`'s
   `"Objective"` / `"ObjectiveComplete"`, `DialogHUD`'s `sfxCategory: "UI"` (typing SFX), and
   `UIButtonSFX`'s `"Click"` / `"Close"` on ~10 buttons across the menu prefabs. An `AudioClip` in
-  scene/prefab YAML is `{fileID: 8300000, guid: <32 hex>, type: 3}`.
+  scene/prefab YAML is `{fileID: 8300000, guid: <32 hex>, type: 3}`. `Assets/_Game/03_Audio/SFX/Enemy`
+  also ships `sfx_enemy-attack`, `sfx_enemy-hit-1` and `sfx_explosion`, which are still
+  unregistered — dropping them in does nothing until a key is added.
+- **`PlaySFX` re-triggers, so `waitForCompletion` is a real choice, not a detail.** One `AudioSource`
+  per key, `Stop()` before `Play()`: overlapping plays of the *same* key cut each other off. The
+  drone's `fireSFX` wants `false` (queueing desyncs a burst from its bullets); anything where the
+  tail matters wants `true` and accepts the queue.
 - `LocalizationSystem` is scaffolded but **not wired**: no `LocalizationTable` asset exists in the
   repo, the component's `table` field is `{fileID: 0}`, and `GetText` is an unguarded
   `table.GetText(...)`, so `Localize.Text(key)` will NRE. The only caller is also unusable —
