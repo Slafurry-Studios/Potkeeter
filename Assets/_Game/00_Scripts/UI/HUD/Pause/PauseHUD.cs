@@ -29,6 +29,12 @@ public class PauseHUD : MonoBehaviour
 
     private void TogglePauseMenu()
     {
+        // PauseMenu ada di action map "UI", bukan "Gameplay", jadi
+        // DisableInput() dari GameOver tidak ikut mematikannya. Tanpa guard
+        // ini player yang sudah mati masih bisa membuka menu pause di atas
+        // layar game over.
+        if (GameOver.Instance != null && GameOver.Instance.IsShowing) return;
+
         if (pauseMenu != null)
         {
             bool isActive = pauseMenu.activeSelf;

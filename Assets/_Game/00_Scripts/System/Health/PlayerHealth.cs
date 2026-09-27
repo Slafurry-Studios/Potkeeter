@@ -71,6 +71,18 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     private void HandlePlayerDeath()
     {
         Debug.Log("Player Die!");
+
+        // GameOverHUD.prefab ada sebagai anak Players.prefab, tapi bukan anak
+        // GameObject ini, jadi GetComponentInParent dari sini tidak akan
+        // menemukannya.
+        if (GameOver.Instance == null)
+        {
+            Debug.LogError("[GameOver] Player mati tapi tidak ada component GameOver. " +
+                           "Pasang script GameOver di GameOverHUD.prefab.");
+            return;
+        }
+
+        GameOver.Instance.ShowGameOver();
     }
 
     /// <summary>Pintu masuk generik untuk damage dari mana saja, termasuk Bullet.</summary>
