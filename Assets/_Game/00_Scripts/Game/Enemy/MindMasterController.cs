@@ -103,6 +103,10 @@ public class MindMasterController : MonoBehaviour
     [Header("Kematian")]
     [SerializeField] private UnityEvent onDeath;
 
+    [Header("Audio")]
+    [Tooltip("Key SFX yang terdaftar di AudioSystem. Kosongkan jika serangan tentakel tidak perlu suara.")]
+    [SerializeField] private string sfxAttackCue = "EnemyLaser";
+
     private readonly List<BossTentacle> _idlePool = new List<BossTentacle>(4);
 
     private Coroutine _bindRoutine;
@@ -351,7 +355,12 @@ public class MindMasterController : MonoBehaviour
             if (phase.maxConcurrentOut > 0 && CountExtended() < phase.maxConcurrentOut)
             {
                 BossTentacle next = PickIdleTentacle();
-                if (next != null) next.PlayAttack();
+                if (next != null)
+                {
+                    next.PlayAttack();
+                    if (!string.IsNullOrEmpty(sfxAttackCue))
+                        AudioSystem.Instance?.PlaySFX(sfxAttackCue, waitForCompletion: false);
+                }
             }
 
             yield return new WaitForSeconds(wait);

@@ -158,11 +158,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a92c76196d8d464ab3c8a768c89d3a3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 1
-  healthBarSlider: {fileID: 0}
-  healthText: {fileID: 0}
+  maxHealth: 3
   hitSFX: EnemyHit
   deathSFX: EnemyDeath
+  hitBlinkDuration: 0.12
+  hitBlinkInterval: 0.04
+  hitBlinkAlpha: 0.2
+  blinkRenderers: []
+  healthBarSlider: {fileID: 0}
+  healthText: {fileID: 0}
+  onDeath:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!114 &1682490918143822379
 MonoBehaviour:
   m_ObjectHideFlags: 0

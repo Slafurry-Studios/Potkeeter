@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.Events;
 
 public class EnemyHealth : MonoBehaviour, IDamageable
 {
@@ -32,6 +33,8 @@ public class EnemyHealth : MonoBehaviour, IDamageable
 
     private float[] blinkOriginalAlpha;
     private Coroutine blinkRoutine;
+
+    [SerializeField] private UnityEvent onDeath;
 
     private void Awake()
     {
@@ -216,6 +219,7 @@ public class EnemyHealth : MonoBehaviour, IDamageable
         // di GameObject miliknya sendiri yang DontDestroyOnLoad, bukan di enemy
         // ini. Kalau AudioSource-nya ikut nempel di enemy, SetActive(false)
         // akan ikut memutus bunyi yang baru saja diputar.
+        onDeath?.Invoke();
         gameObject.SetActive(false);
     }
 
