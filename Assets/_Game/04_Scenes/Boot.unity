@@ -151,7 +151,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: beb137c658f3e9d43916e20989edf06b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetSceneName: Level 3
+  targetSceneName: Main Menu
   systemsToWaitFor:
   - {fileID: 4115260132365387882}
   - {fileID: 8749752912689491822}
