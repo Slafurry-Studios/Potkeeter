@@ -186,10 +186,21 @@ public class BayonetController : MonoBehaviour
 
     #region Input Handlers
 
-    private void HandleLookAtChanged(Vector2 mouseScreenPosition) => currentScreenMousePos = mouseScreenPosition;
+    // this == null di sini bukan comparisons biasa: operator == Unity membaca
+    // native pointer, jadi aman dan true untuk objek yang sudah di-Destroy.
+    // Guard lain di bawah ini cuma cek state managed, yang tetap terbaca
+    // setelah objek mati - tanpa baris ini rantai shoot akan jalan sampai
+    // menyentuh transform native dan melempar MissingReferenceException.
+    private void HandleLookAtChanged(Vector2 mouseScreenPosition)
+    {
+        if (this == null) return;
+
+        currentScreenMousePos = mouseScreenPosition;
+    }
 
     private void HandleShootStarted()
     {
+        if (this == null) return;
         if (!Controls.IsInputEnabled) return;
         if (StateMachine.CurrentState != IdleState) return;
         if (Time.time < lastActionTime + EffectiveShootCooldown) return;
@@ -199,6 +210,7 @@ public class BayonetController : MonoBehaviour
 
     private void HandleParryPressed()
     {
+        if (this == null) return;
         if (!Controls.IsInputEnabled) return;
         if (StateMachine.CurrentState != IdleState) return;
 

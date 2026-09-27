@@ -9,36 +9,41 @@ namespace Slafurry.System.InputHub
 {
     public static class Controls
     {
+        // Aksesor add/remove dicek null karena ada kalanya Instance sudah
+        // hilang saat consumer unsubscribe di OnDisable. Tanpa cek ini,
+        // remove pertama yang melempar akan menghentikan remove berikutnya
+        // dan subscriber-nya menggantung di event list InputHub yang persisten.
+
         // --- Gameplay Actions ---
         public static event Action OnParryPressed
         {
-            add => InputHub.Instance.OnParryPressed += value;
-            remove => InputHub.Instance.OnParryPressed -= value;
+            add { if (InputHub.Instance != null) InputHub.Instance.OnParryPressed += value; }
+            remove { if (InputHub.Instance != null) InputHub.Instance.OnParryPressed -= value; }
         }
 
         public static event Action OnShootStarted
         {
-            add => InputHub.Instance.OnShootStarted += value;
-            remove => InputHub.Instance.OnShootStarted -= value;
+            add { if (InputHub.Instance != null) InputHub.Instance.OnShootStarted += value; }
+            remove { if (InputHub.Instance != null) InputHub.Instance.OnShootStarted -= value; }
         }
 
         public static event Action OnShootCanceled
         {
-            add => InputHub.Instance.OnShootCanceled += value;
-            remove => InputHub.Instance.OnShootCanceled -= value;
+            add { if (InputHub.Instance != null) InputHub.Instance.OnShootCanceled += value; }
+            remove { if (InputHub.Instance != null) InputHub.Instance.OnShootCanceled -= value; }
         }
 
         public static event Action<Vector2> OnLookAtChanged
         {
-            add => InputHub.Instance.OnLookAtChanged += value;
-            remove => InputHub.Instance.OnLookAtChanged -= value;
+            add { if (InputHub.Instance != null) InputHub.Instance.OnLookAtChanged += value; }
+            remove { if (InputHub.Instance != null) InputHub.Instance.OnLookAtChanged -= value; }
         }
 
         // --- UI Actions ---
         public static event Action OnPauseMenuPressed
         {
-            add => InputHub.Instance.OnPauseMenuPressed += value;
-            remove => InputHub.Instance.OnPauseMenuPressed -= value;
+            add { if (InputHub.Instance != null) InputHub.Instance.OnPauseMenuPressed += value; }
+            remove { if (InputHub.Instance != null) InputHub.Instance.OnPauseMenuPressed -= value; }
         }
 
         // --- Kontrol State & Properties ---
