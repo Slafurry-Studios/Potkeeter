@@ -115,6 +115,28 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     }
 
     /// <summary>
+    /// Membuka jendela i-frame dari luar, tanpa lewat damage.
+    ///
+    /// Dipakai perfect parry: parry yang benar-benar menetralkan sesuatu
+    /// memberi waktu napas sekejap, jadi retaliation di detik yang sama tidak
+    /// langsung cabut HP.
+    ///
+    /// Pakai Mathf.Max, bukan assignment biasa, supaya jendela yang sudah
+    /// terbuka dari damage sebelumnya tidak ikut dipotong kalau parry happen
+    /// di tengah i-frame itu -(window yang lebih panjang harus menang, bukan
+    /// yang baru dan lebih pendek).
+    ///
+    /// Sadar: ini tidak memicu Health.OnDamageReceived, jadi
+    /// PlayerDamageBlink tidak menyala dan SFX TakeDamage tidak berbunyi.
+    /// Kebal dari parry karena itu senyap, tidak terlihat.
+    /// </summary>
+    public void GrantInvincibility(float duration)
+    {
+        if (duration <= 0f) return;
+        invincibleUntil = Mathf.Max(invincibleUntil, Time.unscaledTime + duration);
+    }
+
+    /// <summary>
     /// Pintu masuk generik untuk damage dari mana saja, termasuk Bullet.
     ///
     /// Ini satu-satunya titik yang menahan i-frame, jadi semua sumber damage

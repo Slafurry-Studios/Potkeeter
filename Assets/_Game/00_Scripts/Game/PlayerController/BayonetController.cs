@@ -51,6 +51,18 @@ public class BayonetController : MonoBehaviour
     [Tooltip("Layer yang dicari di area parry untuk sumber damage BERBASIS COLLIDER (musuh, jebakan). Peluru tidak perlu dicentang di sini - peluru dicari langsung lewat BulletManager karena tidak punya collider. Kalau kosong, parry hanya bisa menetralkan peluru.")]
     [SerializeField] private LayerMask parryRadiusMask;
 
+    [Header("Parry Chain")]
+    [Tooltip("Berapa lama klik parry yang tersimpan tetap layak dipakai setelah parry selesai tanpa memakainya, dalam detik. Sifatnya jaring pengaman, bukan jendela utama - klik yang masuk selama parry terkunci sendiri bertahan sampai parry selesai.")]
+    [SerializeField, Min(0f)] private float parryBufferLifetime = 0.3f;
+    [Tooltip("Sisa waktu dalam detik yang masih sempat di-parry lagi untuk menjaga rantai tetap hidup. Lewat ini hitungan rantai di-nolkan.")]
+    [SerializeField, Min(0f)] private float parryChainWindow = 1.2f;
+    [Tooltip("Pengali parryTransitionTime selama rantai sudah mencapai 2 atau lebih. Makin kecil, makin rapat parry berikutnya menyusul. 1 = jeda tidak berubah.")]
+    [SerializeField, Range(0.1f, 1f)] private float parryChainTransitionMultiplier = 0.4f;
+
+    [Header("Perfect Parry")]
+    [Tooltip("Detik kebal yang didapat setelah parry yang benar-benar menetralkan sesuatu, jadi tembakan balasan di detik yang sama tidak langsung kena. 0 = tidak dapat kebal. Tidak berlaku untuk parry yang meleset.")]
+    [SerializeField, Min(0f)] private float perfectParryInvincibility = 0.35f;
+
     [Header("Parry Gun Pose")]
     [Tooltip("Transform GunBayonet. Diputar saat parry. Kalau kosong, Lookup tidak jalan - WAJIB di-assign, bukan Trigger/joint shootDir.")]
     [SerializeField] private Transform gunTransform;
@@ -89,6 +101,14 @@ public class BayonetController : MonoBehaviour
     // lastActionTime masih nilai lama dari aksi sebelumnya.
     private float reloadStart = -999f;
 
+    // Parry beruntun. Klik parry saat jeda transisi masih berjalan akan
+    // disimpan di parryBuffered, bukan dibuang seperti sebelumnya, lalu
+    // dipakai ulang begitu BayonetParryingState selesai.
+    private bool parryBuffered;
+    private float parryBufferTimer;
+    private int parryChainCount;
+    private float parryChainTimer;
+
     // Properties State Machine & Timing
     public StateMachine StateMachine { get; private set; }
     public BayonetIdleState IdleState { get; private set; }
@@ -115,6 +135,27 @@ public class BayonetController : MonoBehaviour
 
     public event Action OnReloadFinished;
     public float ParryTransitionTime => parryTransitionTime;
+
+    /// <summary>
+    /// Jeda yang benar-benar dipakai Parry state. Mulai parry ke-2 selama
+    /// rantai masih hidup, jeda ini dipendekkan supaya parry berikutnya
+    /// bisa menyusul rapat.
+    /// </summary>
+    public float EffectiveParryTransitionTime =>
+        parryTransitionTime * (parryChainCount >= 2 ? parryChainTransitionMultiplier : 1f);
+
+    /// <summary>
+    /// Jumlah parry sukses beruntun. Di-nolkan kalau jendelanya habis atau
+    /// ada parry yang meleset.
+    /// </summary>
+    public int ParryChain => parryChainCount;
+
+    /// <summary>Sisa waktu jendela rantai, 0 sampai 1. Untuk HUD.</summary>
+    public float ParryChainWindow01 =>
+        parryChainWindow > 0f ? Mathf.Clamp01(parryChainTimer / parryChainWindow) : 0f;
+
+    /// <summary>Berganti saat ParryChain berubah. Untuk HUD.</summary>
+    public event Action<int> OnParryChainChanged;
 
     /// <summary>
     /// shootCooldown setelah buff ParryMeter diterapkan. ParryMeter tidak
@@ -190,6 +231,59 @@ public class BayonetController : MonoBehaviour
     {
         StateMachine.Update();
         UpdateReloadState();
+        UpdateParryChain();
+    }
+
+    /// <summary>
+    /// Menghitung-usang klik parry yang tersimpan dan jendela rantai.
+    /// </summary>
+    private void UpdateParryChain()
+    {
+        // Buffer parry sengaja TIDAK dikurangi selama parry masih terkunci.
+        // Bahkan jeda terpendek pun lebih panjang dari parryBufferLifetime,
+        // jadi kalau ikut dikurangi, klik yang disimpan habis sebelum sempat
+        // dipakai dan parry beruntun tidak akan pernah terjadi. Yang dikurangi
+        // hanya setelah state parry selesai tanpa memakainya, supaya klik
+        // yang tertinggal dari state yang terputus tidak meledak belakangan.
+        bool parryLocked = StateMachine.CurrentState == ParryingState;
+
+        if (!parryLocked && parryBufferTimer > 0f)
+        {
+            parryBufferTimer -= Time.deltaTime;
+            if (parryBufferTimer <= 0f) parryBuffered = false;
+        }
+
+        if (parryChainTimer <= 0f) return;
+
+        parryChainTimer -= Time.deltaTime;
+        if (parryChainTimer <= 0f) SetParryChain(0);
+    }
+
+    private void SetParryChain(int value)
+    {
+        if (parryChainCount == value) return;
+
+        parryChainCount = value;
+        OnParryChainChanged?.Invoke(parryChainCount);
+    }
+
+    /// <summary>
+    /// Dipanggil <see cref="BayonetParryingState"/> begitu jeda transisi habis.
+    /// Kalau ada klik parry yang tersimpan, parry berikutnya langsung jalan
+    /// tanpa lewat IdleState dulu - StateMachine.ChangeState menolak berpindah
+    /// ke state yang sedang aktif, jadi state parry direstart langsung.
+    /// </summary>
+    public void OnParryWindowEnded()
+    {
+        if (parryBuffered)
+        {
+            parryBuffered = false;
+            parryBufferTimer = 0f;
+            ParryingState.Restart();
+            return;
+        }
+
+        StateMachine.ChangeState(IdleState);
     }
 
     /// <summary>
@@ -290,7 +384,20 @@ public class BayonetController : MonoBehaviour
     {
         if (this == null) return;
         if (!Controls.IsInputEnabled) return;
-        if (StateMachine.CurrentState != IdleState) return;
+
+        if (StateMachine.CurrentState != IdleState)
+        {
+            // Parry yang sedang jalan mengunci input. Dulu klik di tengah jeda
+            // transisi dibuang begitu saja, jadi tidak mungkin ada parry
+            // beruntun. Sekarang kliknya disimpan dulu dan langsung dipakai
+            // begitu Parry state selesai.
+            if (StateMachine.CurrentState == ParryingState)
+            {
+                parryBuffered = true;
+                parryBufferTimer = parryBufferLifetime;
+            }
+            return;
+        }
 
         StateMachine.ChangeState(ParryingState);
     }
@@ -499,6 +606,11 @@ public class BayonetController : MonoBehaviour
         if (countered.Count == 0)
         {
             Debug.Log("[Parry Missed] Tidak ada sumber damage di area parry.");
+
+            // Parry meleset memutus rantai. Inilah risikonya: kalau tidak,
+            // parry bisa ditekan beruntun tanpa konsekuensi apa pun.
+            parryChainTimer = 0f;
+            SetParryChain(0);
             return;
         }
 
@@ -535,6 +647,22 @@ public class BayonetController : MonoBehaviour
         parryVFX?.PlayAt(anchorPoint, transform.eulerAngles.z);
 
         ParryMeter.Instance?.RegisterParry();
+
+        // Perfect parry: hanya di cabang ini, setelah countered.Count dipastikan
+        // tidak nol. Parry yang meleset sudah return di atas, jadi tidak pernah
+        // sampai sini dan tidak pernah dapat kebal.
+        //
+        //         // GrantInvincibility memakai Mathf.Max, jadi kalau player kebetulan
+        // masih dalam i-frame dari damage sebelumnya, jendela yang lebih
+        // panjang itu tidak dipotong oleh window parry yang biasanya lebih
+        // pendek.
+        PlayerHealth.Instance?.GrantInvincibility(perfectParryInvincibility);
+
+        // Rantai naik hanya dari parry yang benar-benar menetralkan sesuatu,
+        // dan jendelanya di-refresh ulang supaya parry berikutnya yang rapat
+        // tidak mematikan rantai yang sedang jalan.
+        parryChainTimer = parryChainWindow;
+        SetParryChain(parryChainCount + 1);
     }
 
     #endregion
