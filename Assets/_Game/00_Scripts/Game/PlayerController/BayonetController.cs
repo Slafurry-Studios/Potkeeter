@@ -209,6 +209,15 @@ public class BayonetController : MonoBehaviour
 
     #region Movement & Aiming
 
+    /// <summary>
+    /// Arah baionet menuju mouse saat ini, ternormalisasi. Dipakai supaya
+    /// pcikaran bodi tidak perlu menghitung ulang posisi mouse sendiri dan
+    /// tidak mungkin beda pendapat dengan baionet.
+    /// </summary>
+    public Vector2 AimDirection => aimDirection;
+
+    private Vector2 aimDirection = Vector2.right;
+
     public void ProcessAimingAndPositioning()
     {
         if (!Controls.IsInputEnabled || hinge.connectedBody == null || basePivot == null)
@@ -220,6 +229,7 @@ public class BayonetController : MonoBehaviour
 
         if (toMouse.sqrMagnitude > DirectionEpsilonSqr)
         {
+            aimDirection = toMouse.normalized;
             UpdateAnchorPosition(pivotPosition, toMouse);
             UpdateRotation(toMouse);
         }
