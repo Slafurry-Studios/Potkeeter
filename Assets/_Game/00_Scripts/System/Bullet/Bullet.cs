@@ -1,4 +1,5 @@
 using Slafurry.Utils.Pooling;
+using Slafurry.Utils.VFX;
 using UnityEngine;
 
 /// <summary>
@@ -53,9 +54,18 @@ public class Bullet : MonoBehaviour, IPoolable, IDamageable, IParryable
     [Tooltip("Panjang jalur yang digambar, dalam unit. Sweep asli per FixedUpdate cuma speed * fixedDeltaTime, jadi pendek sekali untuk dilihat.")]
     [SerializeField, Min(0f)] private float gizmoPathLength = 3f;
 
+    [Header("VFX")]
+    [Tooltip("Spawner efek benturan. Kalau kosong, dicari otomatis di object ini atau parent's-nya.")]
+    [SerializeField] private HitVFX hitVFX;
+
     private Vector2 _direction;
     private float _lifetime;
     private bool _spawned;
+
+    private void Awake()
+    {
+        if (hitVFX == null) hitVFX = GetComponentInParent<HitVFX>();
+    }
 
     /// <summary>Atur posisi dan arah, lalu mulai terbang. Dipanggil BulletManager setelah Get() dari pool.</summary>
     public void Launch(Vector2 origin, Vector2 direction)
@@ -107,12 +117,36 @@ public class Bullet : MonoBehaviour, IPoolable, IDamageable, IParryable
         RaycastHit2D hit = Physics2D.BoxCast(origin, size, angle, _direction, step, hitMask);
         if (hit.collider != null)
         {
+            SpawnHitVFX(hit);
             DealDamage(hit);
             Despawn();
             return;
         }
 
         transform.position += (Vector3)(_direction * step);
+    }
+
+    /// <summary>
+    /// Efek benturan di titik kontak, oriented ke permukaan yang kena.
+    ///
+    /// Dipanggil sebelum DealDamage dan sebelum Despawn, tapi VFX-nya di-spawn
+    /// di world space dan di-schedule untuk Destroy, jadi tidak bergantung
+    /// pada umur peluru sama sekali.
+    ///
+    ///muncul untuk collider apa pun yang kena, termasuk yang tidak punya
+    /// IDamageable - benturan ke tembok tetap oughtnya ada ledakannya. Kalau
+    /// mau hanya muncul saat damage benar-benar masuk, pindahkan pemanggilnya
+    /// ke dalam DealDamage setelah cek target != null.
+    /// </summary>
+    private void SpawnHitVFX(RaycastHit2D hit)
+    {
+        if (hitVFX == null) return;
+
+        // Sudut diambil dari normal permukaan, bukan dari arah peluru, supaya
+        // ledakannya rata menempel di bidang yang kena dan ikut berputar kalau
+        /// Permukaannya miring.
+        float rotationZ = Mathf.Atan2(hit.normal.y, hit.normal.x) * Mathf.Rad2Deg;
+        hitVFX.PlayAt(hit.point, rotationZ);
     }
 
     private void DealDamage(RaycastHit2D hit)
