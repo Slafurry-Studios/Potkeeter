@@ -12,6 +12,8 @@ GameObject:
   - component: {fileID: 5172297181794054189}
   - component: {fileID: 8370265073289702916}
   - component: {fileID: 7777818192026771172}
+  - component: {fileID: 276837924500802681}
+  - component: {fileID: 4610591099205386390}
   m_Layer: 5
   m_Name: PauseButton
   m_TagString: Untagged
@@ -132,6 +134,99 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+--- !u!114 &276837924500802681
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 580603611536052152}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c46ddda017022d0f9ba7572018e0836, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  target: {fileID: 0}
+  canvasGroup: {fileID: 0}
+  graphic: {fileID: 0}
+  hoverScale: 1.08
+  scaleDuration: 0.15
+  brighten: 1
+  hoverBrightness: 1.15
+  brightnessDuration: 0.15
+  useUnscaledTime: 1
+  respondToSelect: 1
+--- !u!114 &4610591099205386390
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 580603611536052152}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89622faf34135d9099a3f83517c5076c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  target: {fileID: 0}
+  graphic: {fileID: 0}
+  pressScale: 0.92
+  pressDuration: 0.08
+  releaseScale: 1.12
+  releaseDuration: 0.25
+  pressCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  releaseCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  overshoot: 1
+  brightenWhilePressed: 1
+  pressedBrightness: 0.9
+  useUnscaledTime: 1
+  releaseOnDragOff: 1
 --- !u!1 &772509007919256801
 GameObject:
   m_ObjectHideFlags: 0
@@ -813,6 +908,7 @@ GameObject:
   - component: {fileID: 5381126214341346926}
   - component: {fileID: 2402912811077166978}
   - component: {fileID: 6104862237201995667}
+  - component: {fileID: 6209395374544585863}
   m_Layer: 5
   m_Name: BackToMainMenu
   m_TagString: Untagged
@@ -892,16 +988,16 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: 
-        m_MethodName: 
-        m_Mode: 1
+      - m_Target: {fileID: 6209395374544585863}
+        m_TargetAssemblyTypeName: ChangeSceneTrigger, Assembly-CSharp
+        m_MethodName: ChangeScene
+        m_Mode: 5
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
-          m_StringArgument: 
+          m_StringArgument: Main Menu
           m_BoolArgument: 0
         m_CallState: 2
 --- !u!114 &5381126214341346926
@@ -1010,6 +1106,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   effectName: Click
+--- !u!114 &6209395374544585863
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5455496477831377102}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f7e1e1ae6e0e8654a3c80a6386cb8e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &6014700449105473410
 GameObject:
   m_ObjectHideFlags: 0
