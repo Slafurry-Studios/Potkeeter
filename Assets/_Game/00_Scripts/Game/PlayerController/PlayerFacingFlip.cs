@@ -12,6 +12,7 @@ public class PlayerFacingFlip : MonoBehaviour
     [SerializeField] private BayonetController bayonet;
     [SerializeField] private SpriteRenderer body;
     [SerializeField] private SpriteRenderer pot;
+    [SerializeField] private SpriteRenderer head;
 
     [Tooltip("Seberapa dekat ke vertikal sebelum arah dianggap berubah, supaya sprite tidak berkedip-ganti. 0.1 = sekitar 6 derajat.")]
     [SerializeField, Range(0f, 0.5f)] private float deadzone = 0.1f;
@@ -20,7 +21,7 @@ public class PlayerFacingFlip : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (bayonet == null || body == null || pot == null) return;
+        if (bayonet == null) return;
 
         Vector2 aim = bayonet.AimDirection;
         if (aim.sqrMagnitude < 0.0001f) return;
@@ -37,7 +38,8 @@ public class PlayerFacingFlip : MonoBehaviour
         if (left == facingLeft) return;
 
         facingLeft = left;
-        body.flipX = left;
-        pot.flipX = left;
+        if (body != null) body.flipX = left;
+        if (pot != null) pot.flipX = left;
+        if (head != null) head.flipX = left;
     }
 }
