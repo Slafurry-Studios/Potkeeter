@@ -39,6 +39,12 @@ namespace Slafurry.System.InputHub
             remove { if (InputHub.Instance != null) InputHub.Instance.OnLookAtChanged -= value; }
         }
 
+        public static event Action<Vector2> OnZoom
+        {
+            add { if (InputHub.Instance != null) InputHub.Instance.OnZoom += value; }
+            remove { if (InputHub.Instance != null) InputHub.Instance.OnZoom -= value; }
+        }
+
         // --- UI Actions ---
         public static event Action OnPauseMenuPressed
         {
@@ -48,6 +54,13 @@ namespace Slafurry.System.InputHub
 
         // --- Kontrol State & Properties ---
         public static bool IsInputEnabled => InputHub.Instance.IsInputEnabled;
+
+        // Add/remove di atas sengaja di-skip kalau Instance belum ada, supaya
+        // tidak ada NRE. Efek sampingnya subscription bisa hilang diam-diam
+        // kalau OnEnable consumer jalan sebelum InputHub ada - contoh scene
+        // yang diputar langsung tanpa Boot. Consumer yang butuh ini
+        // sebaiknya cek IsHubAvailable di Start dan protes loudly.
+        public static bool IsHubAvailable => InputHub.Instance != null;
         
         // Mengembalikan nilai Posisi Layar Mouse (Screen Position) dari InputHub
         public static Vector2 MousePosition => InputHub.Instance.MousePosition;
@@ -66,6 +79,7 @@ namespace Slafurry.System.InputHub
         public event Action OnShootStarted;
         public event Action OnShootCanceled;
         public event Action<Vector2> OnLookAtChanged;
+        public event Action<Vector2> OnZoom;
 
         // UI Events
         public event Action OnPauseMenuPressed;
@@ -76,6 +90,7 @@ namespace Slafurry.System.InputHub
         private InputAction _parryAction;
         private InputAction _shootAction;
         private InputAction _lookAtAction;
+        private InputAction _zoomAction;
         private InputAction _pauseMenuAction;
 
         public bool IsInputEnabled { get; private set; } = true;
@@ -99,6 +114,7 @@ namespace Slafurry.System.InputHub
             _parryAction = _gameplayMap.FindAction("Parry");
             _shootAction = _gameplayMap.FindAction("Shoot");
             _lookAtAction = _gameplayMap.FindAction("LookAt");
+            _zoomAction = _gameplayMap.FindAction("Zoom");
             _pauseMenuAction = _uiMap.FindAction("PauseMenu");
 
             _parryAction.performed += ctx => OnParryPressed?.Invoke();
@@ -112,6 +128,10 @@ namespace Slafurry.System.InputHub
                 MousePosition = ctx.ReadValue<Vector2>();
                 OnLookAtChanged?.Invoke(MousePosition);
             };
+
+            // Scroll forwarded apa adanya (Vector2) supaya consumer CameraZoom
+            // yang memutuskan berapa tinggi satu detikan dan ke arah mana.
+            _zoomAction.performed += ctx => OnZoom?.Invoke(ctx.ReadValue<Vector2>());
 
             _pauseMenuAction.performed += ctx => OnPauseMenuPressed?.Invoke();
 
