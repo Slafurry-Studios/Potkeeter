@@ -125,7 +125,7 @@ MonoBehaviour:
   shakeFrequency: 16
   horizontalRatio: 0.2
   debugParryButton: {fileID: 0}
-  showDebugGuiButton: 1
+  showDebugGuiButton: 0
 --- !u!1 &1589816277246462879
 GameObject:
   m_ObjectHideFlags: 0

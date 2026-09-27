@@ -537,6 +537,7 @@ GameObject:
   - component: {fileID: 1766148047238496157}
   - component: {fileID: 3601173341259153197}
   - component: {fileID: 3171830138312422453}
+  - component: {fileID: 6159158993647073355}
   m_Layer: 0
   m_Name: Players
   m_TagString: Player
@@ -615,6 +616,21 @@ MonoBehaviour:
   vfxPrefab: {fileID: 7685282483028887891, guid: 0c5fd87468780e7eca3c2a37b6aafdae, type: 3}
   lifetime: 0.2
   rotationOffset: 90
+--- !u!114 &6159158993647073355
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2160065396919123733}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96f9cf882910164ef00e447f6c7488c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  blinkRenderers: []
+  blinkInterval: 0.1
+  offAlpha: 0
 --- !u!1 &4133505014490712485
 GameObject:
   m_ObjectHideFlags: 0
@@ -1065,7 +1081,7 @@ Rigidbody2D:
     m_Bits: 0
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
   m_Constraints: 4
 --- !u!114 &2304320743265529763
 MonoBehaviour:
@@ -1080,6 +1096,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxHealth: 5
+  invincibilityDuration: 1
   healthBarSlider: {fileID: 0}
   healthText: {fileID: 0}
 --- !u!114 &6262686089354661673
@@ -1490,7 +1507,7 @@ Rigidbody2D:
     m_Bits: 0
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
   m_Constraints: 0
 --- !u!233 &234548831499439611
 HingeJoint2D:
@@ -1746,7 +1763,7 @@ Rigidbody2D:
     m_Bits: 0
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
   m_Constraints: 0
 --- !u!255 &7376684975801695896
 FixedJoint2D:
@@ -2384,6 +2401,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5421588261341102383, guid: 6d656571336990a09b4a16c906a9a862, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7965176711539058373, guid: 6d656571336990a09b4a16c906a9a862, type: 3}
+      propertyPath: showDebugGuiButton
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []

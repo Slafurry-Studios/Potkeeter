@@ -82,7 +82,10 @@ public class DummyEnemyTest : MonoBehaviour, IParryable
         if (playerCollider != null)
         {
             PlayerHealth playerHealth = playerCollider.GetComponentInParent<PlayerHealth>();
-            playerHealth?.Health.TakeDamage(attackDamage);
+            // Lewat TakeDamage(), bukan Health.TakeDamage(), supaya i-frame
+            // ikut berlaku. Kalau tembak Health langsung, damage tembak-player
+            // ini kebal juga dan hasil testnya tidak sama dengan game aslinya.
+            playerHealth?.TakeDamage(attackDamage);
             Debug.Log("<color=red>[Dummy Enemy] Attack Hit Player!</color>");
         }
     }

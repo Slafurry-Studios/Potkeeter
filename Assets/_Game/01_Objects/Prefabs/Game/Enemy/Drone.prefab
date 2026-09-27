@@ -32,7 +32,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -183.6699, y: 147.5703, z: 497.67474}
-  m_LocalScale: {x: 3, y: 3, z: 3}
+  m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 7745171060107148689}
@@ -133,8 +133,8 @@ MonoBehaviour:
   health: {fileID: 1705134660293740584}
   visual: {fileID: 2992912285195115924}
   playerTarget: {fileID: 0}
-  detectRange: 6
-  fireRange: 4
+  detectRange: 20
+  fireRange: 10
   loseRange: 9
   standoffRange: 2.4
   waypointTolerance: 0.2
@@ -145,7 +145,7 @@ MonoBehaviour:
   hoverFrequency: 1.5
   patrolPoints: []
   patrolWait: 0.7
-  stunDuration: 1.2
+  parryFireLockout: 0.8
 --- !u!114 &1705134660293740584
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -161,6 +161,8 @@ MonoBehaviour:
   maxHealth: 1
   healthBarSlider: {fileID: 0}
   healthText: {fileID: 0}
+  hitSFX: EnemyHit
+  deathSFX: EnemyDeath
 --- !u!114 &1682490918143822379
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -180,8 +182,10 @@ MonoBehaviour:
   burstCount: 2
   aimTolerance: 10
   turnSpeed: 540
+  angleOffsetDegrees: 180
   bulletPrefab: {fileID: 5934149631731129642, guid: ee3b16e3b4b30905fa7ca03aa2605872, type: 3}
   spreadDegrees: 0
+  fireSFX: EnemyLaser
 --- !u!61 &2240002902771794856
 BoxCollider2D:
   m_ObjectHideFlags: 0

@@ -38,7 +38,7 @@ public class ParryMeterHUD : MonoBehaviour
     [Tooltip("Button asli untuk memicu parry. Kalau kosong, dipakai tombol OnGUI di bawah.")]
     [SerializeField] private Button debugParryButton;
     [Tooltip("Tampilkan tombol parry makeshift (OnGUI) kalau debugParryButton kosong. Matikan sebelum build.")]
-    [SerializeField] private bool showDebugGuiButton = true;
+    [SerializeField] private bool showDebugGuiButton;
     [Tooltip("Spawner VFX parry, biar spark ikut muncul waktu debug. Kalau kosong, dicari otomatis.")]
     [SerializeField] private ParryVFX parryVFX;
 
