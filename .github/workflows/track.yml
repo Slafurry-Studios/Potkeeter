@@ -1,206 +1,206 @@
-name: Track Drive Changes
+# name: Track Drive Changes
 
-on:
-  schedule:
-    - cron: '0 23 * * *'  # 07:00 WITA (UTC+8) daily
-  workflow_dispatch: {}
+# on:
+#   schedule:
+#     - cron: '0 23 * * *'  # 07:00 WITA (UTC+8) daily
+#   workflow_dispatch: {}
 
-permissions:
-  contents: write
+# permissions:
+#   contents: write
 
-jobs:
-  track:
-    runs-on: ubuntu-latest
+# jobs:
+#   track:
+#     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           ref: main
+#           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+#       - uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.11'
 
-      - run: pip install -r requirements.txt
+#       - run: pip install -r requirements.txt
 
-      - name: Sync latest state from main
-        run: |
-          git fetch origin main
+#       - name: Sync latest state from main
+#         run: |
+#           git fetch origin main
 
-          rm -rf state
-          mkdir -p state
+#           rm -rf state
+#           mkdir -p state
 
-          git archive origin/main -- state 2>/dev/null | tar -x || true
+#           git archive origin/main -- state 2>/dev/null | tar -x || true
 
-      - name: Check sprite folder for changes
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
-          GEMINI_PERSONA: ${{ secrets.GEMINI_PERSONA }}
-        run: |
-          python track.py \
-            --drive-folder-id "${{ secrets.DRIVE_SPRITE_FOLDER_ID }}" \
-            --service-account-b64 "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_B64 }}" \
-            --discord-webhook "${{ secrets.DISCORD_WEBHOOK_URL }}" \
-            --state-file "state/sprite_manifest.json" \
-            --project-name "${{ github.repository }} (sprite)"
+#       - name: Check sprite folder for changes
+#         env:
+#           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+#           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+#           GEMINI_PERSONA: ${{ secrets.GEMINI_PERSONA }}
+#         run: |
+#           python track.py \
+#             --drive-folder-id "${{ secrets.DRIVE_SPRITE_FOLDER_ID }}" \
+#             --service-account-b64 "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_B64 }}" \
+#             --discord-webhook "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+#             --state-file "state/sprite_manifest.json" \
+#             --project-name "${{ github.repository }} (sprite)"
 
-      - name: Check audio folder for changes
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
-          GEMINI_PERSONA: ${{ secrets.GEMINI_PERSONA }}
-        run: |
-          python track.py \
-            --drive-folder-id "${{ secrets.DRIVE_AUDIO_FOLDER_ID }}" \
-            --service-account-b64 "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_B64 }}" \
-            --discord-webhook "${{ secrets.DISCORD_WEBHOOK_URL }}" \
-            --state-file "state/audio_manifest.json" \
-            --project-name "${{ github.repository }} (audio)"
+#       - name: Check audio folder for changes
+#         env:
+#           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+#           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+#           GEMINI_PERSONA: ${{ secrets.GEMINI_PERSONA }}
+#         run: |
+#           python track.py \
+#             --drive-folder-id "${{ secrets.DRIVE_AUDIO_FOLDER_ID }}" \
+#             --service-account-b64 "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_B64 }}" \
+#             --discord-webhook "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+#             --state-file "state/audio_manifest.json" \
+#             --project-name "${{ github.repository }} (audio)"
 
-      - name: Commit updated state to chore/asset
-        env:
-          BOT_GIT_USERNAME: ${{ vars.BOT_GIT_USERNAME || 'Utazumi Sakurako' }}
-          BOT_GIT_EMAIL: ${{ vars.BOT_GIT_EMAIL || '45u35+UtazumiSakurako[bot]@users.noreply.github.com' }}
-        run: |
-          git config user.name "$BOT_GIT_USERNAME"
-          git config user.email "$BOT_GIT_EMAIL"
+#       - name: Commit updated state to chore/asset
+#         env:
+#           BOT_GIT_USERNAME: ${{ vars.BOT_GIT_USERNAME || 'Utazumi Sakurako' }}
+#           BOT_GIT_EMAIL: ${{ vars.BOT_GIT_EMAIL || '45u35+UtazumiSakurako[bot]@users.noreply.github.com' }}
+#         run: |
+#           git config user.name "$BOT_GIT_USERNAME"
+#           git config user.email "$BOT_GIT_EMAIL"
 
-          git fetch origin main
+#           git fetch origin main
 
-          WORKTREE=/tmp/chore-asset
+#           WORKTREE=/tmp/chore-asset
 
-          # chore/asset is disposable.
-          # Always recreate it from the latest main.
-          git branch -D chore/asset 2>/dev/null || true
-          git push origin --delete chore/asset 2>/dev/null || true
+#           # chore/asset is disposable.
+#           # Always recreate it from the latest main.
+#           git branch -D chore/asset 2>/dev/null || true
+#           git push origin --delete chore/asset 2>/dev/null || true
 
-          git worktree add -b chore/asset "$WORKTREE" origin/main
+#           git worktree add -b chore/asset "$WORKTREE" origin/main
 
-          mkdir -p "$WORKTREE/state"
-          cp -f state/*.json "$WORKTREE/state/" 2>/dev/null || true
+#           mkdir -p "$WORKTREE/state"
+#           cp -f state/*.json "$WORKTREE/state/" 2>/dev/null || true
 
-          cd "$WORKTREE"
+#           cd "$WORKTREE"
 
-          git add state/
+#           git add state/
 
-          if git diff --cached --quiet; then
-            echo "No state changes, skipping."
-            exit 0
-          fi
+#           if git diff --cached --quiet; then
+#             echo "No state changes, skipping."
+#             exit 0
+#           fi
 
-          git commit -m "chore(assets): update drive state [skip ci]"
-          git push origin HEAD:chore/asset
+#           git commit -m "chore(assets): update drive state [skip ci]"
+#           git push origin HEAD:chore/asset
 
 
-  # ============================================================
-  # DISCORD FAILURE NOTIFICATION
-  # ============================================================
+#   # ============================================================
+#   # DISCORD FAILURE NOTIFICATION
+#   # ============================================================
 
-  notify-failure:
-    name: Notify Discord (Failure)
+#   notify-failure:
+#     name: Notify Discord (Failure)
 
-    needs:
-      - track
+#     needs:
+#       - track
 
-    if: failure()
+#     if: failure()
 
-    runs-on: ubuntu-latest
+#     runs-on: ubuntu-latest
 
-    steps:
+#     steps:
 
-      - name: Generate failure message with Gemini
-        id: flavor
+#       - name: Generate failure message with Gemini
+#         id: flavor
 
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
-          GEMINI_PERSONA: ${{ secrets.GEMINI_PERSONA }}
-          GEMINI_LANGUAGE: ${{ vars.GEMINI_LANGUAGE || '' }}
+#         env:
+#           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+#           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+#           GEMINI_PERSONA: ${{ secrets.GEMINI_PERSONA }}
+#           GEMINI_LANGUAGE: ${{ vars.GEMINI_LANGUAGE || '' }}
 
-        shell: bash
+#         shell: bash
 
-        run: |
-          set -e
+#         run: |
+#           set -e
 
-          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+#           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          if [ -n "${GEMINI_LANGUAGE}" ]; then
-            LANGUAGE_INSTRUCTION="Write the response in ${GEMINI_LANGUAGE}."
-          else
-            LANGUAGE_INSTRUCTION="Write the response in the same language used in the persona instructions above."
-          fi
+#           if [ -n "${GEMINI_LANGUAGE}" ]; then
+#             LANGUAGE_INSTRUCTION="Write the response in ${GEMINI_LANGUAGE}."
+#           else
+#             LANGUAGE_INSTRUCTION="Write the response in the same language used in the persona instructions above."
+#           fi
 
-          PROMPT="${GEMINI_PERSONA}
+#           PROMPT="${GEMINI_PERSONA}
 
-          Write ONE short paragraph (maximum 3 sentences, no markdown formatting, no surrounding quotation marks) announcing that the automated Drive change tracking workflow for repository \"${{ github.repository }}\" has FAILED.
+#           Write ONE short paragraph (maximum 3 sentences, no markdown formatting, no surrounding quotation marks) announcing that the automated Drive change tracking workflow for repository \"${{ github.repository }}\" has FAILED.
 
-          Include the workflow run URL: ${RUN_URL}
-          ${LANGUAGE_INSTRUCTION}"
+#           Include the workflow run URL: ${RUN_URL}
+#           ${LANGUAGE_INSTRUCTION}"
 
-          BODY=$(jq -n \
-            --arg prompt "$PROMPT" \
-            '{
-              contents: [
-                {
-                  parts: [
-                    {
-                      text: $prompt
-                    }
-                  ]
-                }
-              ]
-            }')
+#           BODY=$(jq -n \
+#             --arg prompt "$PROMPT" \
+#             '{
+#               contents: [
+#                 {
+#                   parts: [
+#                     {
+#                       text: $prompt
+#                     }
+#                   ]
+#                 }
+#               ]
+#             }')
 
-          RESPONSE=$(curl -sS -X POST \
-            "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}" \
-            -H "Content-Type: application/json" \
-            -d "$BODY")
+#           RESPONSE=$(curl -sS -X POST \
+#             "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}" \
+#             -H "Content-Type: application/json" \
+#             -d "$BODY")
 
-          TEXT=$(echo "$RESPONSE" | jq -r \
-            '.candidates[0].content.parts[0].text // empty')
+#           TEXT=$(echo "$RESPONSE" | jq -r \
+#             '.candidates[0].content.parts[0].text // empty')
 
-          if [ -z "$TEXT" ]; then
-            echo "Gemini failed, using fallback message."
-            TEXT="Track drive changes untuk ${{ github.repository }} gagal. Sila cek log: ${RUN_URL}"
-          fi
+#           if [ -z "$TEXT" ]; then
+#             echo "Gemini failed, using fallback message."
+#             TEXT="Track drive changes untuk ${{ github.repository }} gagal. Sila cek log: ${RUN_URL}"
+#           fi
 
-          {
-            echo "text<<GEMINI_EOF"
-            echo "$TEXT"
-            echo "GEMINI_EOF"
-          } >> "$GITHUB_OUTPUT"
+#           {
+#             echo "text<<GEMINI_EOF"
+#             echo "$TEXT"
+#             echo "GEMINI_EOF"
+#           } >> "$GITHUB_OUTPUT"
 
-      - name: Send Discord failure notification
+#       - name: Send Discord failure notification
 
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          FLAVOR_TEXT: ${{ steps.flavor.outputs.text }}
+#         env:
+#           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+#           FLAVOR_TEXT: ${{ steps.flavor.outputs.text }}
 
-        shell: bash
+#         shell: bash
 
-        run: |
-          set -e
+#         run: |
+#           set -e
 
-          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+#           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          PAYLOAD=$(jq -n \
-            --arg content "$FLAVOR_TEXT" \
-            --arg title "Track Failed — ${{ github.repository }}" \
-            --arg url "$RUN_URL" \
-            '{
-              embeds: [
-                {
-                  title: $title,
-                  url: $url,
-                  description: $content,
-                  color: 15548997
-                }
-              ]
-            }')
+#           PAYLOAD=$(jq -n \
+#             --arg content "$FLAVOR_TEXT" \
+#             --arg title "Track Failed — ${{ github.repository }}" \
+#             --arg url "$RUN_URL" \
+#             '{
+#               embeds: [
+#                 {
+#                   title: $title,
+#                   url: $url,
+#                   description: $content,
+#                   color: 15548997
+#                 }
+#               ]
+#             }')
 
-          curl -sS \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$DISCORD_WEBHOOK_URL"
+#           curl -sS \
+#             -H "Content-Type: application/json" \
+#             -d "$PAYLOAD" \
+#             "$DISCORD_WEBHOOK_URL"
